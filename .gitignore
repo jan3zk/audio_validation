@@ -1,0 +1,8 @@
+__pycache__/
+archive/
+dist/
+build/
+audio_validation.spec
+audio_validation.exe.lnk
+*.xlsx
+*.zip
