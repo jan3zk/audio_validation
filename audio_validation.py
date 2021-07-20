@@ -125,7 +125,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             spoken_txt = r.recognize_google(audio_data, language="sl-SL")
             spoken_txt = re.sub('-', ' ', spoken_txt)
             spoken_txt = num_wrapper(spoken_txt)
-            print('... Zahtevano besedilo:  "%s"'%target_txt_clean)
+            print('... Referenčno besedilo:  "%s"'%target_txt_clean)
             print('... Razpoznano besedilo: "%s"'%spoken_txt)
             #txt_sim = textdistance.levenshtein.normalized_similarity(spoken_txt, target_txt_clean)
             txt_wer = wer(spoken_txt, target_txt_clean)
@@ -138,7 +138,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             else:
               print('... Posnetek JE skladen z besedilom (WER = %.2f).'%txt_wer)
           txt_label.delete('1.0', tk.END)
-          txt_label.insert(tk.INSERT, "Zahtevano besedilo:\n%s\n\nRazpoznano besedilo:\n%s\n\nWER = %.3f"%(target_txt_clean, spoken_txt, txt_wer))
+          txt_label.insert(tk.INSERT, "Referenčno besedilo:\n%s\n\nRazpoznano besedilo:\n%s\n\nWER = %.3f"%(target_txt_clean, spoken_txt, txt_wer))
 
           seqm = dl.SequenceMatcher(None, target_txt_clean, spoken_txt)
           for opcode, a0, a1, b0, b1 in seqm.get_opcodes():
@@ -164,7 +164,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         print("Preverjanje skladnosti z besedilom (bližnjice na tipkovnici: Da <space>, Ne <n>, Ponovno predvajaj <p>) ...")
         if semiauto == 1:
           txt_label.delete('1.0', tk.END)
-          txt_label.insert(tk.INSERT, "Zahtevano besedilo:\n%s"%target_txt)
+          txt_label.insert(tk.INSERT, "Referenčno besedilo:\n%s"%target_txt)
         master.update()
         play(AudioSegment.from_wav(wf))
         qvar_txt = tk.IntVar()
