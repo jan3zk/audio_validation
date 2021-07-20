@@ -1,6 +1,6 @@
 # Validacija posnetkov govora
 
-Aplikacija za validacijo govornih posnetkov, ki omogoča preverjanje skladnosti posnetkov z besedilom in ustreznosti začetnih/končnih premorov ter glasnosti.
+Aplikacija za validacijo govornih posnetkov, ki omogoča preverjanje skladnosti posnetkov z referenčnim besedilom in ustreznosti začetnih/končnih premorov ter glasnosti.
 
 # Namestitev in uporaba
 
