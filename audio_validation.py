@@ -79,6 +79,13 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     xtext = pd.read_excel(xlsx_file, engine='openpyxl')
     xtext['napaka'] = None
     xtext['opis'] = None
+  wav_names = [os.path.splitext(os.path.basename(wf))[0] for wf in wav_files]
+  xlsx_names = xtext['ID koda govorca:'].to_list()
+  missing_wavs = np.setdiff1d(xlsx_names, wav_names)
+  if missing_wavs.size:
+    print('Manjkajoči posnetki:')
+    for mw in missing_wavs:
+      print(mw)
   tfm = sox.Transformer()
   now = datetime.datetime.now()
   rejfile = os.path.basename(xlsx_file)[:-5]+'_zavrnjeni.'+now.strftime("%Y%m%d_%H%M%S")+'.xlsx'
@@ -125,7 +132,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             spoken_txt = r.recognize_google(audio_data, language="sl-SL")
             spoken_txt = re.sub('-', ' ', spoken_txt)
             spoken_txt = num_wrapper(spoken_txt)
-            print('... Referenčno besedilo:  "%s"'%target_txt_clean)
+            print('... Referenčno besedilo:  "%s"'%target_txt)
             print('... Razpoznano besedilo: "%s"'%spoken_txt)
             #txt_sim = textdistance.levenshtein.normalized_similarity(spoken_txt, target_txt_clean)
             txt_wer = wer(spoken_txt, target_txt_clean)
@@ -216,10 +223,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       v_speech_a = np.mean([vol for vol in volume if vol>VOL_INI_THRESH])
     v_silence_a = np.mean([vol for vol in v_silence_a if vol>-np.inf])
     silence_thresh = (v_speech_a + v_silence_a)*.5
-    silent_blocks = [vol < silence_thresh for vol in volume]
     speech_blocks = [vol > silence_thresh for vol in volume]
-    #silent_blocks[:500] = [True]*500
-    #silent_blocks[-500:] = [True]*500
     grow = morphology.binary_erosion(speech_blocks, structure=np.ones((15), dtype=bool))
     n_erode = 0
     if (grow[:int(len(grow)/4)-1] < grow[1:int(len(grow)/4)]).sum() + (grow[-int(len(grow)/4):-1] < grow[-int(len(grow)/4)+1:]).sum() > 2 and n_erode < 5:
@@ -456,7 +460,7 @@ w = tk.OptionMenu(param_frame, mode_var, *mode_choices, command=set_operating_mo
 w.grid()
 mode_map = {'ročni':0, 'samodejni':1, 'polsamodejni':2}
 
-sim_label = tk.Label(param_frame, text="Prag zavrnitve:")
+sim_label = tk.Label(param_frame, text="Prag zavrnitve (WER):")
 sim_thresh = tk.Entry(param_frame, text="", width=4, justify='right')
 
 start_var = tk.IntVar()

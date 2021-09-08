@@ -1,0 +1,12 @@
+num2words==0.5.10
+pandas==1.0.4
+SoundFile==0.10.3.post1
+sox==1.4.1
+matplotlib==3.2.0
+pygame==2.0.1
+jiwer==2.2.0
+SpeechRecognition==3.8.1
+textdistance==4.2.1
+numpy==1.18.4
+pydub==0.24.1
+scipy==1.4.1
