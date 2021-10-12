@@ -256,7 +256,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     vol_speech = volume[t_ini_v:-t_fin_v]
     vol_mean = np.mean([vol for vol in vol_speech if vol>silence_thresh])
     vcolr = 'k'
-    SPEECH_VOLUME_THRESH = -30
+    SPEECH_VOLUME_THRESH = -35
     rf = sox_stats2["Rough   frequency"]
     if vol_mean < SPEECH_VOLUME_THRESH or rf < 600:
       vcolr = 'r'
@@ -312,7 +312,10 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         (t_ini, t_fin), color=pcolr)
 
       ax2 = plt.subplot(312)
-      plt.specgram(data,Fs=rate)
+      if data.ndim > 1:
+        plt.specgram(data[:,0],Fs=rate)
+      else:
+        plt.specgram(data,Fs=rate)
       plt.xlim(0, t_end)
       plt.xlabel("Čas [s]")
       plt.ylabel("Frekvenca [Hz]")
