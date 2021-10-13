@@ -24,19 +24,19 @@ from num2words import num2words
 from jiwer import wer
 from openpyxl.styles import Alignment
 
-
 from ctypes import *
 from contextlib import contextmanager
 ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
 def py_error_handler(filename, line, function, err, fmt):
-    pass
+  pass
 c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
 @contextmanager
 def noalsaerr():
-    asound = cdll.LoadLibrary('libasound.so')
-    asound.snd_lib_error_set_handler(c_error_handler)
-    yield
-    asound.snd_lib_error_set_handler(None)
+  asound = cdll.LoadLibrary('libasound.so')
+  asound.snd_lib_error_set_handler(c_error_handler)
+  yield
+  asound.snd_lib_error_set_handler(None)
+
 
 ap = argparse.ArgumentParser(
   description = '''Skripta za preverjanje ustreznosti zvočnih 
@@ -193,8 +193,11 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           txt_label.delete('1.0', tk.END)
           txt_label.insert(tk.INSERT, "Referenčno besedilo:\n%s"%target_txt)
         master.update()
-        with noalsaerr():
+        if os.name == 'nt':
           play(AudioSegment.from_wav(wf))
+        else:
+          with noalsaerr():
+            play(AudioSegment.from_wav(wf))
         qvar_txt = tk.IntVar()
         yes_txt = tk.Button(txt_frame, text = "Da", command=lambda: qvar_txt.set(1))
         master.bind('<space>', lambda e: qvar_txt.set(1))
