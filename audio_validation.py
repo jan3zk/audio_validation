@@ -22,6 +22,21 @@ import datetime
 import difflib as dl
 from num2words import num2words
 from jiwer import wer
+from openpyxl.styles import Alignment
+
+
+from ctypes import *
+from contextlib import contextmanager
+ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
+def py_error_handler(filename, line, function, err, fmt):
+    pass
+c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
+@contextmanager
+def noalsaerr():
+    asound = cdll.LoadLibrary('libasound.so')
+    asound.snd_lib_error_set_handler(c_error_handler)
+    yield
+    asound.snd_lib_error_set_handler(None)
 
 ap = argparse.ArgumentParser(
   description = '''Skripta za preverjanje ustreznosti zvočnih 
@@ -79,6 +94,8 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     xtext = pd.read_excel(xlsx_file, engine='openpyxl')
     xtext['napaka'] = None
     xtext['opis'] = None
+    xtext['opomba'] = None
+
   wav_names = [os.path.splitext(os.path.basename(wf))[0] for wf in wav_files]
   xlsx_names = xtext['ID koda govorca:'].to_list()
   missing_wavs = np.setdiff1d(xlsx_names, wav_names)
@@ -86,6 +103,8 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     print('Manjkajoči posnetki:')
     for mw in missing_wavs:
       print(mw)
+      xtext.loc[xtext.iloc[:,0] == mw, 'opomba'] = 'Manjkajoč posnetek'
+
   tfm = sox.Transformer()
   now = datetime.datetime.now()
   rejfile = os.path.basename(xlsx_file)[:-5]+'_zavrnjeni.'+now.strftime("%Y%m%d_%H%M%S")+'.xlsx'
@@ -93,6 +112,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
   for c, wf in enumerate(wav_files[start_num-1:]):
     err = []
     reason = []
+    cmnt = []
     fname = os.path.basename(wf)
     master.title('Validacija posnetka %s (%i/%i)'%(fname,c+start_num,len(wav_files)))
     sox_stats = tfm.stats(wf)
@@ -168,28 +188,33 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           mode_0 = 1
       if mode == 0 or (mode ==2 and semiauto == 0) or mode_0:
         mode_0 = 0
-        print("Preverjanje skladnosti z besedilom (bližnjice na tipkovnici: Da <space>, Ne <n>, Ponovno predvajaj <p>) ...")
+        print("Preverjanje skladnosti z besedilom (bližnjice na tipkovnici: Da <space>, Ne <n>, Ponovi <p>, Opomba <o>) ...")
         if semiauto == 1:
           txt_label.delete('1.0', tk.END)
           txt_label.insert(tk.INSERT, "Referenčno besedilo:\n%s"%target_txt)
         master.update()
-        play(AudioSegment.from_wav(wf))
+        with noalsaerr():
+          play(AudioSegment.from_wav(wf))
         qvar_txt = tk.IntVar()
         yes_txt = tk.Button(txt_frame, text = "Da", command=lambda: qvar_txt.set(1))
         master.bind('<space>', lambda e: qvar_txt.set(1))
         no_txt = tk.Button(txt_frame, text = "Ne", command=lambda: qvar_txt.set(2))
         master.bind('n', lambda e: qvar_txt.set(2))
-        repeat_txt = tk.Button(txt_frame, text = "Ponovno predvajaj", command=lambda: qvar_txt.set(3))
+        repeat_txt = tk.Button(txt_frame, text = "Ponovitev", command=lambda: qvar_txt.set(3))
         master.bind('p', lambda e: qvar_txt.set(3))
+        cmnt_txt = tk.Button(txt_frame, text="Opomba", command=lambda: qvar_txt.set(4))
+        master.bind('o', lambda e: qvar_txt.set(4))
         while True:
           yes_txt.grid(row=2, column=0)
           no_txt.grid(row = 2, column = 1)
           repeat_txt.grid(row = 2, column = 2)
+          cmnt_txt.grid(row = 2, column = 3)
           master.update()
           yes_txt.wait_variable(qvar_txt)
           yes_txt.grid_forget()
           no_txt.grid_forget()
           repeat_txt.grid_forget()
+          cmnt_txt.grid_forget()
           master.update()
           if qvar_txt.get() == 1:
             print('... Posnetek JE skladen z besedilom.')
@@ -198,11 +223,17 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             print('... Posnetek NI skladen z besedilom.')
             reason.append('neskladje z besedilom')
             err.append('b')
+            descr = popup_description()
+            if descr:
+              reason[-1] = reason[-1]+' ('+descr+')'
             break
           elif qvar_txt.get() == 3:
             play(AudioSegment.from_wav(wf))
             qvar_txt.set(0)
-
+          elif qvar_txt.get() == 4:
+            cmnt.append(popup_description())
+            qvar_txt.set(0)
+          
     data, rate = sf.read(wf)
     fail_string = []
   
@@ -288,7 +319,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         fail_string.append("vmesni premori: %.2f"%t_is)
 
     if mode == 0 or (mode==2 and fail_string):
-      print("Preverjanje začetne in končne tišine ter glasnosti (bližnjice na tipkovnici: Da <space>, Ne <n>) ...")
+      print("Preverjanje začetne in končne tišine ter glasnosti (bližnjice na tipkovnici: Da <space>, Ne <n>, Opomba <o>) ...")
       t_end = len(data)/rate
       ax1 = plt.subplot(311)
       plt.plot( np.linspace(0,t_ini,len(data[:int(t_ini*rate)])),
@@ -339,34 +370,45 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       plt.ylabel("Glasnost[dBFS]")
       plt.tight_layout()
       fig.canvas.draw()
-      
-      #plt.savefig('silence_detection.pdf', format='pdf')
-      
+
       if mode==2 and semiauto==1:
         play(AudioSegment.from_wav(wf))
 
       qvar_time = tk.IntVar()
       yes_tm = tk.Button(timing_frame, text = "Da", command=lambda: qvar_time.set(1))
-      yes_tm.grid(row=1, column=1)
       master.bind('<space>', lambda e: qvar_time.set(1))
       no_tm = tk.Button(timing_frame, text = "Ne", command=lambda: qvar_time.set(2))
-      no_tm.grid(row = 1, column = 2)
       master.bind('n', lambda e: qvar_time.set(2))
-      master.update()
-      yes_tm.wait_variable(qvar_time)
-      plt.clf()
-      fig.canvas.draw()
-      if qvar_time.get() == 1:
-        print('... Premori in glasnost ustrezajo zahtevam.')
-      elif qvar_time.get() == 2:
-        if fail_string:
-          reason.append(", ".join(fail_string))
-        else:
-          reason.append('premori in/ali glasnost niso ustrezni')
-        err.append('p')
-        print('... Premori in/ali glasnost NE ustrezajo zahtevam.')
-      yes_tm.grid_forget()
-      no_tm.grid_forget()
+      cmnt_tm = tk.Button(timing_frame, text="Opomba", command=lambda: qvar_time.set(3))
+      master.bind('o', lambda e: qvar_time.set(3))
+      while True:
+        yes_tm.grid(row=1, column=1)
+        no_tm.grid(row = 1, column = 2)
+        cmnt_tm.grid(row = 1, column = 3)
+        master.update()
+        yes_tm.wait_variable(qvar_time)
+        yes_tm.grid_forget()
+        no_tm.grid_forget()
+        cmnt_tm.grid_forget()
+        master.update()
+        plt.clf()
+        fig.canvas.draw()
+        if qvar_time.get() == 1:
+          print('... Premori in glasnost ustrezajo zahtevam.')
+          break
+        elif qvar_time.get() == 2:
+          if fail_string:
+            reason.append(", ".join(fail_string))
+          else:
+            reason.append('premori in/ali glasnost niso ustrezni')
+          err.append('p')
+          descr = popup_description()
+          if descr:
+            reason[-1] = reason[-1]+' ('+descr+')'
+          print('... Premori in/ali glasnost NE ustrezajo zahtevam.')
+          break
+        elif qvar_time.get() == 3:
+          cmnt.append(popup_description())
     else:
       print("Preverjanje začetne in končne tišine ter glasnosti ...")
       if fail_string:
@@ -386,16 +428,41 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     else:
       accept_area.insert(tk.INSERT, fname+'\n')
 
-    xtext.to_excel(xwriter,index=False)
+    if cmnt:
+      xtext.loc[xtext.iloc[:,0] == fnm, 'opomba'] = " ".join(cmnt)
+
+    xtext.to_excel(xwriter, index=False, sheet_name='povedi_za_snemanje')
+
+    xwriter.sheets['povedi_za_snemanje'].column_dimensions['A'].width = 22
+    xwriter.sheets['povedi_za_snemanje'].column_dimensions['B'].width = 90
+    xwriter.sheets['povedi_za_snemanje'].column_dimensions['C'].width = 10
+    xwriter.sheets['povedi_za_snemanje'].column_dimensions['D'].width = 60
+    xwriter.sheets['povedi_za_snemanje'].column_dimensions['E'].width = 60
+    for cell in xwriter.sheets['povedi_za_snemanje']['B']:
+      cell.alignment = Alignment(wrap_text=True)
     xwriter.save()
 
-def popup_window():
+def popup_warning():
   window = tk.Toplevel()
   window.title('Opozorilo')
   label = tk.Label(window, text="Najprej definiraj mapo s posnetki WAV, besedilno datoteko XSLX in način delovanja!")
   label.pack(fill='x', padx=50, pady=5)
   button_close = tk.Button(window, text="Close", command=window.destroy)
   button_close.pack(fill='x')
+  
+def popup_description():
+  window = tk.Toplevel()
+  window.title('Dodaj opombo')
+  desc_entry= tk.Entry(window, width= 130)
+  desc_entry.pack()
+  close_var = tk.IntVar()
+  button_close = tk.Button(window, text="Close", command=lambda: close_var.set(1))
+  button_close.pack(fill='x')
+  window.bind('<Return>', lambda e: close_var.set(1))
+  button_close.wait_variable(close_var)
+  descr = desc_entry.get()
+  window.destroy()
+  return descr
 
 def select_wav_dir():
   wdir = filedialog.askdirectory()
@@ -474,14 +541,14 @@ txt_frame = tk.LabelFrame(master, text="(2) Skladnost z besedilom?")
 txt_frame.grid(row=2, column=0,padx=5, pady=5)
 txt_label = tk.Text(txt_frame, width=40, height=11, wrap="word")
 txt_label.config(state=tk.NORMAL, font = ("Helvetica", 11))
-txt_label.grid(columnspan=3)
+txt_label.grid(columnspan=4)
 
 timing_frame = tk.LabelFrame(master, text="(3) Ustrezni začetni in končni premor ter glasnost?")
 timing_frame.grid(row=0, column=1, rowspan=3, padx=5, pady=5)
 fig = plt.figure()
 fig.set_figwidth(4)
 canvas = FigureCanvasTkAgg(fig, master=timing_frame)
-canvas.get_tk_widget().grid(row=0,column=1,columnspan=2)
+canvas.get_tk_widget().grid(row=0,column=1,columnspan=3)
 
 accept_frame = tk.LabelFrame(master, text="Sprejeti posnetki")
 accept_frame.grid(row=0, column=2, rowspan=1, padx=5, pady=5)
@@ -507,7 +574,7 @@ while True:
     wav_dir = wav_entry.get()
     xlsx_file = xlsx_entry.get()
     if not wav_dir or not xlsx_file or not mode_var.get():
-      popup_window()
+      popup_warning()
       start_var.set(0)
     else:
       start_btn.grid_forget()
