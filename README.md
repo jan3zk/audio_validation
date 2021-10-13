@@ -1,4 +1,4 @@
-![GUI](gui.png)
+![GUI](gui.jpg)
 # Validacija posnetkov govora
 
 Aplikacija za validacijo govornih posnetkov, ki omogoča preverjanje skladnosti posnetkov z referenčnim besedilom in ustreznosti začetnih/končnih premorov ter glasnosti.
