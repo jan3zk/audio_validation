@@ -231,7 +231,11 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
               reason[-1] = reason[-1]+' ('+descr+')'
             break
           elif qvar_txt.get() == 3:
-            play(AudioSegment.from_wav(wf))
+            if os.name == 'nt':
+              play(AudioSegment.from_wav(wf))
+            else:
+              with noalsaerr():
+                play(AudioSegment.from_wav(wf))
             qvar_txt.set(0)
           elif qvar_txt.get() == 4:
             cmnt.append(popup_description())
@@ -375,7 +379,11 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       fig.canvas.draw()
 
       if mode==2 and semiauto==1:
-        play(AudioSegment.from_wav(wf))
+        if os.name == 'nt':
+          play(AudioSegment.from_wav(wf))
+        else:
+          with noalsaerr():
+            play(AudioSegment.from_wav(wf))
 
       qvar_time = tk.IntVar()
       yes_tm = tk.Button(timing_frame, text = "Da", command=lambda: qvar_time.set(1))
