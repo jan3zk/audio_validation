@@ -8,7 +8,7 @@ import numpy as np
 import sox
 import matplotlib.pyplot as plt
 import pandas as pd
-from pydub import AudioSegment
+from pydub import AudioSegment,silence
 from pydub.playback import play
 from scipy.ndimage import measurements, morphology
 import speech_recognition as sr
@@ -23,6 +23,7 @@ import difflib as dl
 from num2words import num2words
 from jiwer import wer
 from openpyxl.styles import Alignment
+import pyloudnorm as pyln
 
 from ctypes import *
 from contextlib import contextmanager
@@ -145,7 +146,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       semiauto = 1
       mode_0 = 0
       if mode == 1 or mode == 2:
-        print("Preverjanje skladnosti z besedilom ...")
+        print("Preverjanje skladnosti z besedilom (bližnjice na tipkovnici: Da <space>, Ne <n>, Ponovi <p>, Opomba <o>) ...")
         try:
           with sr.AudioFile(wf) as audio_src:
             audio_data = r.record(audio_src)
@@ -188,7 +189,9 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           mode_0 = 1
       if mode == 0 or (mode ==2 and semiauto == 0) or mode_0:
         mode_0 = 0
-        print("Preverjanje skladnosti z besedilom (bližnjice na tipkovnici: Da <space>, Ne <n>, Ponovi <p>, Opomba <o>) ...")
+        if mode == 0:
+          print("Preverjanje skladnosti z besedilom (bližnjice na tipkovnici: Da <space>, Ne <n>, Ponovi <p>, Opomba <o>) ...")
+          print('... Referenčno besedilo:  "%s"'%target_txt)
         if semiauto == 1:
           txt_label.delete('1.0', tk.END)
           txt_label.insert(tk.INSERT, "Referenčno besedilo:\n%s"%target_txt)
@@ -228,7 +231,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             err.append('b')
             descr = popup_description()
             if descr:
-              reason[-1] = reason[-1]+' ('+descr+')'
+              reason[-1] = descr #reason[-1]+' ('+descr+')'
             break
           elif qvar_txt.get() == 3:
             if os.name == 'nt':
@@ -245,36 +248,21 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     fail_string = []
   
     # Izračun glasnosti
-    speech = AudioSegment.from_file(wf)
     SEGMENT_MS = 5
     VOL_INI_THRESH = -35
+    speech = AudioSegment.from_file(wf)
+    min_silence_len=250
+    silent = silence.detect_silence(speech, min_silence_len=min_silence_len, silence_thresh=speech.dBFS-19)
+    # ~ while len(silent) < 2:
+      # ~ min_silence_len=min_silence/2
+      # ~ silent = silence.detect_silence(speech, min_silence_len=min_silence_len, silence_thresh=speech.dBFS-19)
+    t_ini_v = silent[0][1]
+    t_ini = t_ini_v/1000
+    t_fin_v = silent[-1][1]-silent[-1][0]
+    t_fin = t_fin_v/1000
+    t_ini_v = int(t_ini_v/SEGMENT_MS)
+    t_fin_v = int(t_fin_v/SEGMENT_MS)
     volume = [segment.dBFS for segment in speech[::SEGMENT_MS]]
-
-    # Detekcija začetnega in končnega premora
-    # (alternativa: https://pysox.readthedocs.io/en/latest/api.html#sox.transform.Transformer.vad)
-    scl = 1000/SEGMENT_MS
-    v_speech_a = volume[int(1*scl):-int(1*scl)]
-    v_silence_a = volume[:int(.5*scl)] + volume[-int(.5*scl):]
-    if len(v_speech_a)>100:
-      v_speech_a = np.mean([vol for vol in v_speech_a if vol>VOL_INI_THRESH])
-    else:
-      v_speech_a = np.mean([vol for vol in volume if vol>VOL_INI_THRESH])
-    v_silence_a = np.mean([vol for vol in v_silence_a if vol>-np.inf])
-    silence_thresh = (v_speech_a + v_silence_a)*.5
-    speech_blocks = [vol > silence_thresh for vol in volume]
-    grow = morphology.binary_erosion(speech_blocks, structure=np.ones((15), dtype=bool))
-    n_erode = 0
-    if (grow[:int(len(grow)/4)-1] < grow[1:int(len(grow)/4)]).sum() + (grow[-int(len(grow)/4):-1] < grow[-int(len(grow)/4)+1:]).sum() > 2 and n_erode < 5:
-      grow = morphology.binary_erosion(grow, structure=np.ones((15), dtype=bool))
-      n_erode = n_erode + 1
-    grow = ~grow
-    lbl, npatches = measurements.label(grow)
-    ini_idx = max(set(lbl[:5]), key = lbl[:5].tolist().count)
-    fin_idx = max(set(lbl[-5:]), key = lbl[-5:].tolist().count)
-    t_ini_v = sum(lbl == ini_idx)
-    t_ini = t_ini_v*(SEGMENT_MS / 1000)
-    t_fin_v = sum(lbl == fin_idx)
-    t_fin = t_fin_v*(SEGMENT_MS / 1000)
 
     #SNR
     speechRMS = np.sqrt(np.mean(data[int(t_ini*rate):-int(t_fin*rate)]**2))
@@ -291,39 +279,17 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     if t_fin < .5-TOL or t_fin > 1+TOL:
       pcolr = 'r'
       fail_string.append("koncni premor: %.2f s"%t_fin)
-    vol_speech = volume[t_ini_v:-t_fin_v]
-    vol_mean = np.mean([vol for vol in vol_speech if vol>silence_thresh])
-    vcolr = 'k'
-    SPEECH_VOLUME_THRESH = -35
-    rf = sox_stats2["Rough   frequency"]
-    if vol_mean < SPEECH_VOLUME_THRESH or rf < 600:
-      vcolr = 'r'
-      fail_string.append("glasnost: %.1f dBFS, RF: %.1f"%(vol_mean, rf))
 
-    # Detekcija premorov znotraj govornega odseka
+    meter = pyln.Meter(rate)
+    vol_mean = meter.integrated_loudness(data)#(data[int(t_ini*rate):-int(t_fin*rate)])
+    vcolr = 'k'
+    SPEECH_VOLUME_THRESH = -25#-35
+    if vol_mean < SPEECH_VOLUME_THRESH:
+      vcolr = 'r'
+      fail_string.append("glasnost: %.1f dBFS"%vol_mean)
+
     t_vol = np.arange(len(volume))*(SEGMENT_MS / 1000)
-    v_speech = np.array(volume[t_ini_v:-t_fin_v])
-    silence_vs_speech = 0
-    INTERMEDIATE_SILENCE = .5
-    if v_speech.size > 0:
-      lbl_is = lbl.astype(float)
-      lbl_is[lbl_is == ini_idx] = np.nan
-      lbl_is[lbl_is == fin_idx] = np.nan
-      lbl_is[volume > silence_thresh] = np.nan
-      uniq, freq = np.unique(lbl_is[~np.isnan(lbl_is)], return_counts=True)
-      SILENCE_LEN = 60
-      for u,f in zip(uniq,freq):
-        if f < SILENCE_LEN:
-          lbl_is[lbl_is == u] = np.nan
-      t_vol_is = np.copy(t_vol)
-      t_vol_is[np.isnan(lbl_is)] = np.nan
-      vol_is = np.array(volume).astype(float)
-      vol_is[np.isnan(lbl_is)] = np.nan
-      silence_vs_speech = sum(~np.isnan(vol_is))/len(v_speech)
-      t_is = sum(~np.isnan(vol_is))*(SEGMENT_MS / 1000)
-      if silence_vs_speech > INTERMEDIATE_SILENCE:
-        vcolr = 'r'
-        fail_string.append("vmesni premori: %.2f"%t_is)
+
 
     if mode == 0 or (mode==2 and fail_string):
       print("Preverjanje začetne in končne tišine ter glasnosti (bližnjice na tipkovnici: Da <space>, Ne <n>, Opomba <o>) ...")
@@ -362,13 +328,8 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       ax3 = plt.subplot(313)
       plt.plot(t_vol[:t_ini_v], volume[:t_ini_v],'r')
       plt.plot(t_vol[t_ini_v:-t_fin_v], volume[t_ini_v:-t_fin_v],'g')
-      if  silence_vs_speech > INTERMEDIATE_SILENCE:
-        plt.plot(t_vol_is, vol_is,'b')
-        ax3.set_title("Maks.: %.2f dBFS, povpr.: %.2f dBFS, vmesni premori: %.2f s"%
-        (speech.max_dBFS, vol_mean, t_is), color=vcolr)
-      else:
-        ax3.set_title("Maks.: %.2f dBFS, povpr.: %.2f dBFS"%
-        (speech.max_dBFS, vol_mean), color=vcolr)
+      ax3.set_title("Maks.: %.2f dBFS, povpr.: %.2f dBFS"%
+      (speech.max_dBFS, vol_mean), color=vcolr)
       plt.plot(t_vol[-t_fin_v:], volume[-t_fin_v:],'r')
       plt.axhline(y=-6, color='k', linestyle='--')
       plt.axhline(y=-18, color='k', linestyle='--')
@@ -415,7 +376,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           err.append('p')
           descr = popup_description()
           if descr:
-            reason[-1] = reason[-1]+' ('+descr+')'
+            reason[-1] = descr #reason[-1]+' ('+descr+')'
           print('... Premori in/ali glasnost NE ustrezajo zahtevam.')
           break
         elif qvar_time.get() == 3:
