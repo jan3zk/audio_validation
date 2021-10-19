@@ -104,7 +104,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     print('Manjkajoči posnetki:')
     for mw in missing_wavs:
       print(mw)
-      xtext.loc[xtext.iloc[:,0] == mw, 'opomba'] = 'Manjkajoč posnetek'
+      xtext.loc[xtext.iloc[:,0] == mw, 'opomba'] = 'manjkajoč posnetek'
 
   tfm = sox.Transformer()
   now = datetime.datetime.now()
