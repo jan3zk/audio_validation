@@ -93,9 +93,12 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
   r = sr.Recognizer()
   if xlsx_file is not None:
     xtext = pd.read_excel(xlsx_file, engine='openpyxl')
-    xtext['napaka'] = None
-    xtext['opis'] = None
-    xtext['opomba'] = None
+    if 'napaka' not in xtext:
+      xtext['napaka'] = None
+    if 'opis' not in xtext:
+      xtext['opis'] = None
+    if 'opomba' not in xtext:
+      xtext['opomba'] = None
 
   wav_names = [os.path.splitext(os.path.basename(wf))[0] for wf in wav_files]
   xlsx_names = xtext['ID koda govorca:'].to_list()
@@ -108,7 +111,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
 
   tfm = sox.Transformer()
   now = datetime.datetime.now()
-  rejfile = os.path.basename(xlsx_file)[:-5]+'_zavrnjeni.'+now.strftime("%Y%m%d_%H%M%S")+'.xlsx'
+  rejfile = xlsx_file #os.path.basename(xlsx_file)[:-5]+'_zavrnjeni.'+now.strftime("%Y%m%d_%H%M%S")+'.xlsx'
   xwriter = pd.ExcelWriter(rejfile, engine='openpyxl') 
   for c, wf in enumerate(wav_files[start_num-1:]):
     err = []
@@ -251,8 +254,8 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     SEGMENT_MS = 5
     VOL_INI_THRESH = -35
     speech = AudioSegment.from_file(wf)
-    min_silence_len=250
-    silent = silence.detect_silence(speech, min_silence_len=min_silence_len, silence_thresh=speech.dBFS-19)
+    min_silence_len=100
+    silent = silence.detect_silence(speech, min_silence_len=min_silence_len, silence_thresh=speech.dBFS-18)
     # ~ while len(silent) < 2:
       # ~ min_silence_len=min_silence/2
       # ~ silent = silence.detect_silence(speech, min_silence_len=min_silence_len, silence_thresh=speech.dBFS-19)
@@ -283,7 +286,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     meter = pyln.Meter(rate)
     vol_mean = meter.integrated_loudness(data)#(data[int(t_ini*rate):-int(t_fin*rate)])
     vcolr = 'k'
-    SPEECH_VOLUME_THRESH = -25#-35
+    SPEECH_VOLUME_THRESH = -27#-35
     if vol_mean < SPEECH_VOLUME_THRESH:
       vcolr = 'r'
       fail_string.append("glasnost: %.1f dBFS"%vol_mean)
