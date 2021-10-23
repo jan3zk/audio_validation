@@ -12,7 +12,6 @@ from pydub import AudioSegment,silence
 from pydub.playback import play
 from scipy.ndimage import measurements, morphology
 import speech_recognition as sr
-#import textdistance
 import re
 import tkinter.filedialog as filedialog
 import tkinter as tk
@@ -24,6 +23,8 @@ from num2words import num2words
 from jiwer import wer
 from openpyxl.styles import Alignment
 import pyloudnorm as pyln
+#import textdistance
+
 
 from ctypes import *
 from contextlib import contextmanager
@@ -111,7 +112,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
 
   tfm = sox.Transformer()
   now = datetime.datetime.now()
-  rejfile = xlsx_file #os.path.basename(xlsx_file)[:-5]+'_zavrnjeni.'+now.strftime("%Y%m%d_%H%M%S")+'.xlsx'
+  rejfile = xlsx_file
   xwriter = pd.ExcelWriter(rejfile, engine='openpyxl') 
   for c, wf in enumerate(wav_files[start_num-1:]):
     err = []
@@ -126,17 +127,17 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     all_stats = {**sox_stats, **sox_stats2}
     stats_label.config(text = '\n'.join("{}: {}".format(k, d) for k, d in all_stats.items()))
 
-    print('Preverjanje formata zapisa ...')
+    print('Preverjanje formata zapisa:')
     stats = sf.info(wf)
     if (stats.samplerate != 44100 or stats.channels != 1 or 
         stats.format != "WAV" or stats.subtype != "PCM_16"):
-      print("... Format zapisa NI v skladu z zahtevami.")
+      print("    Format zapisa NI v skladu z zahtevami.")
       reason.append("neustrezen format zapisa (vzorcenje: %d, kanali: %d,"
         "format: %s, podtip: %s)"
         %(stats.samplerate, stats.channels, stats.format, stats.subtype))
       err.append('f')
     else:
-      print("... Format zapisa JE v skladu z zahtevami.")
+      print("    Format zapisa JE v skladu z zahtevami.")
 
     if xlsx_file is not None:
       fnm = os.path.splitext(fname)[0]
@@ -149,25 +150,25 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       semiauto = 1
       mode_0 = 0
       if mode == 1 or mode == 2:
-        print("Preverjanje skladnosti z besedilom (bližnjice na tipkovnici: Da <space>, Ne <n>, Ponovi <p>, Opomba <o>) ...")
+        print("Preverjanje skladnosti z besedilom:")
         try:
           with sr.AudioFile(wf) as audio_src:
             audio_data = r.record(audio_src)
             spoken_txt = r.recognize_google(audio_data, language="sl-SL")
             spoken_txt = re.sub('-', ' ', spoken_txt)
             spoken_txt = num_wrapper(spoken_txt)
-            print('... Referenčno besedilo:  "%s"'%target_txt)
-            print('... Razpoznano besedilo: "%s"'%spoken_txt)
+            print('    Referenčno besedilo: "%s"'%target_txt)
+            print('    Razpoznano besedilo: "%s"'%spoken_txt)
             #txt_sim = textdistance.levenshtein.normalized_similarity(spoken_txt, target_txt_clean)
             txt_wer = wer(spoken_txt, target_txt_clean)
             if txt_wer > sim_thresh:
               semiauto = 0
               if mode == 1:
-                print('... Posnetek NI skladen z besedilom (WER = %.2f).'%txt_wer)
+                print('    Posnetek NI skladen z besedilom (WER = %.2f).'%txt_wer)
                 reason.append('neskladje z besedilom (WER = %.2f)'%txt_wer)
                 err.append('b')
             else:
-              print('... Posnetek JE skladen z besedilom (WER = %.2f).'%txt_wer)
+              print('    Posnetek JE skladen z besedilom (WER = %.2f).'%txt_wer)
           txt_label.delete('1.0', tk.END)
           txt_label.insert(tk.INSERT, "Referenčno besedilo:\n%s\n\nRazpoznano besedilo:\n%s\n\nWER = %.3f"%(target_txt_clean, spoken_txt, txt_wer))
 
@@ -193,8 +194,8 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       if mode == 0 or (mode ==2 and semiauto == 0) or mode_0:
         mode_0 = 0
         if mode == 0:
-          print("Preverjanje skladnosti z besedilom (bližnjice na tipkovnici: Da <space>, Ne <n>, Ponovi <p>, Opomba <o>) ...")
-          print('... Referenčno besedilo:  "%s"'%target_txt)
+          print("Preverjanje skladnosti z besedilom:")
+          print('    Referenčno besedilo:  "%s"'%target_txt)
         if semiauto == 1:
           txt_label.delete('1.0', tk.END)
           txt_label.insert(tk.INSERT, "Referenčno besedilo:\n%s"%target_txt)
@@ -204,6 +205,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         else:
           with noalsaerr():
             play(AudioSegment.from_wav(wf))
+        print("    Odgovori s pritiskom na ustrezen gumb ali bližnjico na tipkovnici: Da <space>, Ne <n>, Ponovi <p>, Opomba <o>.")
         qvar_txt = tk.IntVar()
         yes_txt = tk.Button(txt_frame, text = "Da", command=lambda: qvar_txt.set(1))
         master.bind('<space>', lambda e: qvar_txt.set(1))
@@ -226,13 +228,13 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           cmnt_txt.grid_forget()
           master.update()
           if qvar_txt.get() == 1:
-            print('... Posnetek JE skladen z besedilom.')
+            print('    Posnetek JE skladen z besedilom.')
             break
           elif qvar_txt.get() == 2:
-            print('... Posnetek NI skladen z besedilom.')
+            print('    Posnetek NI skladen z besedilom. Dodaj opcijsko opombo kje je prišlo do neskladja, npr.: "del referenčnega besedila, kjer je prišlo do neskladja" ~ "pripadajoče izgovorjeno besedilo".')
             reason.append('neskladje z besedilom')
             err.append('b')
-            descr = popup_description()
+            descr = popup_description('neskladje z besedilom')
             if descr:
               reason[-1] = descr #reason[-1]+' ('+descr+')'
             break
@@ -249,16 +251,19 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           
     data, rate = sf.read(wf)
     fail_string = []
-  
+    meter = pyln.Meter(rate)
+    vol_mean = meter.integrated_loudness(data)
+    
     # Izračun glasnosti
     SEGMENT_MS = 5
     VOL_INI_THRESH = -35
     speech = AudioSegment.from_file(wf)
-    min_silence_len=100
-    silent = silence.detect_silence(speech, min_silence_len=min_silence_len, silence_thresh=speech.dBFS-18)
-    # ~ while len(silent) < 2:
-      # ~ min_silence_len=min_silence/2
-      # ~ silent = silence.detect_silence(speech, min_silence_len=min_silence_len, silence_thresh=speech.dBFS-19)
+    min_silence_len = 200
+    speech_thresh = vol_mean+3
+    silent = silence.detect_silence(speech, min_silence_len=min_silence_len, silence_thresh=speech.dBFS+speech_thresh)
+    while len(silent) < 2:
+      speech_thresh = speech_thresh+1
+      silent = silence.detect_silence(speech, min_silence_len=min_silence_len, silence_thresh=speech.dBFS+speech_thresh)
     t_ini_v = silent[0][1]
     t_ini = t_ini_v/1000
     t_fin_v = silent[-1][1]-silent[-1][0]
@@ -283,8 +288,6 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       pcolr = 'r'
       fail_string.append("koncni premor: %.2f s"%t_fin)
 
-    meter = pyln.Meter(rate)
-    vol_mean = meter.integrated_loudness(data)#(data[int(t_ini*rate):-int(t_fin*rate)])
     vcolr = 'k'
     SPEECH_VOLUME_THRESH = -27#-35
     if vol_mean < SPEECH_VOLUME_THRESH:
@@ -295,7 +298,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
 
 
     if mode == 0 or (mode==2 and fail_string):
-      print("Preverjanje začetne in končne tišine ter glasnosti (bližnjice na tipkovnici: Da <space>, Ne <n>, Opomba <o>) ...")
+      print("Preverjanje začetne in končne tišine ter glasnosti:")
       t_end = len(data)/rate
       ax1 = plt.subplot(311)
       plt.plot( np.linspace(0,t_ini,len(data[:int(t_ini*rate)])),
@@ -369,7 +372,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         plt.clf()
         fig.canvas.draw()
         if qvar_time.get() == 1:
-          print('... Premori in glasnost ustrezajo zahtevam.')
+          print('    Premori in glasnost ustrezajo zahtevam.')
           break
         elif qvar_time.get() == 2:
           if fail_string:
@@ -377,34 +380,38 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           else:
             reason.append('premori in/ali glasnost niso ustrezni')
           err.append('p')
-          descr = popup_description()
+          print('    Premori in/ali glasnost NE ustrezajo zahtevam. Dodaj opcijsko opombo o neustreznosti premorov/glasnosti.')
+          descr = popup_description('premori in/ali glasnost niso ustrezni')
           if descr:
-            reason[-1] = descr #reason[-1]+' ('+descr+')'
-          print('... Premori in/ali glasnost NE ustrezajo zahtevam.')
+            reason[-1] = descr
           break
         elif qvar_time.get() == 3:
           cmnt.append(popup_description())
     else:
-      print("Preverjanje začetne in končne tišine ter glasnosti ...")
+      print("Preverjanje začetne in končne tišine ter glasnosti:")
       if fail_string:
-        print('... Premori in glasnost NE ustrezajo zahtevam.')
+        print('    Premori in glasnost NE ustrezajo zahtevam.')
         fail_string.append("(SNR: %.1f, SNR_sox: %.1f)"%(SNR, SNR_sox))
         reason.append(", ".join(fail_string))
         err.append('p')
       else:
-        print('... Premori in glasnost ustrezajo zahtevam.')
+        print('    Premori in glasnost ustrezajo zahtevam.')
     fig.clf()
     master.update()
 
     if reason:
       reject_area.insert(tk.INSERT, fname+'\n')
-      xtext.loc[xtext.iloc[:,0] == fnm, 'napaka'] = ", ".join(err)
-      xtext.loc[xtext.iloc[:,0] == fnm, 'opis'] = ", ".join(reason)
+      # ~ xtext.loc[xtext.iloc[:,0] == fnm, 'napaka'] = ", ".join(err)
+      # ~ xtext.loc[xtext.iloc[:,0] == fnm, 'opis'] = ", ".join(reason)
     else:
       accept_area.insert(tk.INSERT, fname+'\n')
 
-    if cmnt:
-      xtext.loc[xtext.iloc[:,0] == fnm, 'opomba'] = " ".join(cmnt)
+    # ~ if cmnt:
+      # ~ xtext.loc[xtext.iloc[:,0] == fnm, 'opomba'] = " ".join(cmnt)
+
+    xtext.loc[xtext.iloc[:,0] == fnm, 'napaka'] = ", ".join(err)
+    xtext.loc[xtext.iloc[:,0] == fnm, 'opis'] = ", ".join(reason)
+    xtext.loc[xtext.iloc[:,0] == fnm, 'opomba'] = " ".join(cmnt)
 
     xtext.to_excel(xwriter, index=False, sheet_name='povedi_za_snemanje')
 
@@ -425,14 +432,19 @@ def popup_warning():
   button_close = tk.Button(window, text="Close", command=window.destroy)
   button_close.pack(fill='x')
   
-def popup_description():
+def popup_description(default_text=''):
+  def disable_esc():
+   pass
   window = tk.Toplevel()
+  window.protocol("WM_DELETE_WINDOW", disable_esc)
   window.title('Dodaj opombo')
   desc_entry= tk.Entry(window, width= 130)
+  desc_entry.insert(tk.END, default_text)
   desc_entry.pack()
   close_var = tk.IntVar()
-  button_close = tk.Button(window, text="Close", command=lambda: close_var.set(1))
+  button_close = tk.Button(window, text="Zapri", command=lambda: close_var.set(1))
   button_close.pack(fill='x')
+  print('    Za zaprtje pojavnega okna pritisni gumb "Zapri" ali tipko <Enter>.')
   window.bind('<Return>', lambda e: close_var.set(1))
   button_close.wait_variable(close_var)
   descr = desc_entry.get()
@@ -474,7 +486,7 @@ def set_operating_mode(*entry):
 
 master.protocol('WM_DELETE_WINDOW', on_exit)
 
-print('Vnesi vhodne parametre ...')
+print('Vnesi vhodne parametre.')
 param_frame = tk.LabelFrame(master, text="(1) Vhodni parametri")
 param_frame.grid(row=0, column=0, padx=5, pady=5)
 
