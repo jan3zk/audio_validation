@@ -15,6 +15,11 @@ optional.add_argument("-w",
   metavar = "WAV_DIR",
   default = "",
   help = "Direktorij s posnetki WAV.")
+ap.add_argument('-n',
+  type = str,
+  nargs = '+',
+  default = '',
+  help = "Seznam napak, ki naj se upoštevajo (npr. 'a b f').")
 args = ap.parse_args()
 
 xlsx_file = args.x
@@ -24,7 +29,14 @@ if wav_path:
     wav_path += os.path.sep
 
 xlist = pd.read_excel(args.x, engine='openpyxl')
-xfile = xlist.loc[xlist['napaka'].notna(),'ID koda govorca:']
+xfile_tmp = []
+if args.n:
+  for err_lbl in args.n:
+    xfile_tmp.append(xlist.loc[xlist['napaka'].str.contains(err_lbl) == True,'ID koda govorca:'])
+  xfile = pd.concat(xfile_tmp)
+  xfile = xfile.sort_index()
+else:
+  xfile = xlist.loc[xlist['napaka'].notna(),'ID koda govorca:']
 xfile = wav_path + xfile + '.wav'
 txt_file = os.path.splitext(xlsx_file)[0]+'.txt'
 xfile.to_csv(txt_file, sep='\t', index=False, header=False)
