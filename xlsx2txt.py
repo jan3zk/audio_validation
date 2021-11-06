@@ -32,7 +32,7 @@ xlist = pd.read_excel(args.x, engine='openpyxl')
 xfile_tmp = []
 if args.n:
   for err_lbl in args.n:
-    xfile_tmp.append(xlist.loc[xlist['napaka'].str.contains(err_lbl) == True,'ID koda govorca:'])
+    xfile_tmp.append(xlist.loc[xlist['napaka'] == err_lbl,'ID koda govorca:'])
   xfile = pd.concat(xfile_tmp)
   xfile = xfile.sort_index()
 else:
