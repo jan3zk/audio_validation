@@ -19,5 +19,11 @@ Drugi korak predstavlja preverjanje skladnosti z referenčnim besedilom. V ta na
 
 V zadnjem koraku se preveri skladnost začetnih/končnih premorov in ustreznost glasnosti posnetka. V pomoč nam je sredinski okvir v grafičnem vmesniku, kjer se pri ročnem in polsamodejnem načinu izrišejo trije grafi, ki so v pomoč pri oceni ustreznosti premorov in glasnosti. Aplikacija vsebuje samodejno oceno premorov in glasnosti, zato so na grafih tihi in govorjeni deli posnetkov ustrezno barvno kodirani. Začetni in končni premor morata biti v območju med 0,5 s in 1,0 s (belo obarvano ozadje na zgornjem grafu), medtem ko naj bi bila glasnost posnetka v večji meri nad -20 dBFS. Tudi v tem koraku posnetek odobrimo ali zavrnemo s pritiskom na ustrezno tipko.
 
+## Pomožne funkcije
+
+Funkcija [xlsx2txt.py](xlsx2txt.py) iz vhodne datoteke xlsx z označenimi zavrnjenimi posnetki tvori tekstovno datoteko s seznamom zavrnjenih posnetkov.
+
+Funkcija [check_val.py](check_val.py) preveri ujemanje števila posnetkov ( #odobreni = #izvorni - #zavrnjeni) v lokalnih mapah in pripadajočih mapah na strežniku.
+
 ## Referenca
 [Križaj, Janez; Dobrišek, Simon. "Validacija zvočnih posnetkov pri izdelavi podatkovne zbirke za učenje razpoznavalnika slovenščine", 30. Mednarodna Elektrotehniška in računalniška konferenca, Portorož, Slovenija, pp. 382-385, 2021](https://erk.fe.uni-lj.si/2021/papers/krizaj(validacija_zvocnih).pdf)
