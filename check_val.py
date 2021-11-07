@@ -6,7 +6,7 @@ import glob
 import os, sys
 import argparse
 
-# nastavi poti do izvornih in odobrenih posnetkov na lokalnem disku in na strežniku nas.jcvt.si
+# nastavi poti do izvornih in odobrenih posnetkov na lokalnem disku in na strežniku nas.cjvt.si
 izvorni_bkp = '/storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp'
 izvorni_nas_bkp = ':ASR/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp'
 odobreni = '/storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki'
