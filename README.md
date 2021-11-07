@@ -21,7 +21,7 @@ V zadnjem koraku se preveri skladnost začetnih/končnih premorov in ustreznost 
 
 ## Pomožne skripte
 
-Skripta [xlsx2txt.py](xlsx2txt.py) iz vhodne datoteke xlsx z označenimi zavrnjenimi posnetki tvori tekstovno datoteko s seznamom zavrnjenih posnetkov.
+Skripta [xlsx2txt.py](xlsx2txt.py) iz vhodne datoteke xlsx z označenimi zavrnjenimi posnetki tvori tekstovno datoteko s seznamom zavrnjenih posnetkov. Izhodno tekstovno datoteko lahko uporabimo v povezavi s klicem rsync pri kopiranju odobrenih posnetkov (argument --exclude-from) in zavrnjenih posnetkov (argument --files-from) iz mape izvorni posnetki.
 
 Skripta [check_val.py](check_val.py) preveri ujemanje števila posnetkov ( #odobreni = #izvorni - #zavrnjeni) v lokalnih mapah in pripadajočih mapah na strežniku.
 
