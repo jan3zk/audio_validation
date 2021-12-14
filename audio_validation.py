@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pydub import AudioSegment,silence
 from pydub.playback import play
-from scipy.ndimage import measurements, morphology
 import speech_recognition as sr
 import re
 import tkinter.filedialog as filedialog
@@ -112,8 +111,8 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
 
   tfm = sox.Transformer()
   now = datetime.datetime.now()
-  rejfile = xlsx_file
-  xwriter = pd.ExcelWriter(rejfile, engine='openpyxl') 
+  rejfile = os.path.splitext(os.path.basename(xlsx_file))[0]+now.strftime("_%Y%m%d-%H%M%S")+os.path.splitext(xlsx_file)[-1]
+  xwriter = pd.ExcelWriter(rejfile, engine='openpyxl')
   for c, wf in enumerate(wav_files[start_num-1:]):
     err = []
     reason = []
@@ -256,17 +255,12 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     
     # Izračun glasnosti
     SEGMENT_MS = 5
-    VOL_INI_THRESH = -35
+    VOL_INI_THRESH = -33
     speech = AudioSegment.from_file(wf)
-    min_silence_len = 200
-    speech_thresh = vol_mean+3
-    silent = silence.detect_silence(speech, min_silence_len=min_silence_len, silence_thresh=speech.dBFS+speech_thresh)
-    while len(silent) < 2:
-      speech_thresh = speech_thresh+1
-      silent = silence.detect_silence(speech, min_silence_len=min_silence_len, silence_thresh=speech.dBFS+speech_thresh)
-    t_ini_v = silent[0][1]
+    MIN_SILENCE_LEN = 75
+    t_ini_v = silence.detect_leading_silence(speech, silence_threshold=VOL_INI_THRESH, chunk_size=MIN_SILENCE_LEN)
     t_ini = t_ini_v/1000
-    t_fin_v = silent[-1][1]-silent[-1][0]
+    t_fin_v = silence.detect_leading_silence(speech.reverse(), silence_threshold=VOL_INI_THRESH, chunk_size=MIN_SILENCE_LEN)
     t_fin = t_fin_v/1000
     t_ini_v = int(t_ini_v/SEGMENT_MS)
     t_fin_v = int(t_fin_v/SEGMENT_MS)
@@ -401,13 +395,8 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
 
     if reason:
       reject_area.insert(tk.INSERT, fname+'\n')
-      # ~ xtext.loc[xtext.iloc[:,0] == fnm, 'napaka'] = ", ".join(err)
-      # ~ xtext.loc[xtext.iloc[:,0] == fnm, 'opis'] = ", ".join(reason)
     else:
       accept_area.insert(tk.INSERT, fname+'\n')
-
-    # ~ if cmnt:
-      # ~ xtext.loc[xtext.iloc[:,0] == fnm, 'opomba'] = " ".join(cmnt)
 
     xtext.loc[xtext.iloc[:,0] == fnm, 'napaka'] = ", ".join(err)
     xtext.loc[xtext.iloc[:,0] == fnm, 'opis'] = ", ".join(reason)
