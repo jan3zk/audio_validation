@@ -1,6 +1,6 @@
 ![GUI](gui.jpg)
 
-*Read this in other languages: [English](README.en.md)
+*Read this in other languages: [English](README.md)
 
 # Validacija posnetkov govora
 
