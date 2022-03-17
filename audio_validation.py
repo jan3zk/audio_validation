@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-print('Nalaganje programskih knjižnic ...')
+print('Loading libraries ...')
 import sys
-# ~ sys.path.append('/home/janezk/Documents/repos/speech_trim/')
 from glob import glob
 import os
 import argparse
@@ -27,6 +26,10 @@ import pyloudnorm as pyln
 from utils import speech_trim
 from ctypes import *
 from contextlib import contextmanager
+# ~ import matplotlib
+# ~ from matplotlib import rc
+# ~ matplotlib.rc('text', usetex = True)
+
 
 # Handle pydub warnings
 ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
@@ -42,10 +45,9 @@ def noalsaerr():
 
 
 ap = argparse.ArgumentParser(
-  description = '''Skripta za preverjanje ustreznosti zvočnih 
-   posnetkov, ki olajša preverjanje formata zapisa, skladnosti s 
-   pripadajočim besedilom, začetne/končne tišine in glasnosti 
-   posnetka.''')
+  description = '''he tool assists the user in verifying several preset 
+  audio requirements, such as the compliance with the reference text, 
+  correct audio format, initial and final non-speech segments and audio volume.''')
 ap._action_groups.pop()
 required = ap.add_argument_group('required arguments')
 optional = ap.add_argument_group('optional arguments')
@@ -53,18 +55,25 @@ optional.add_argument("-w",
   type = str,
   metavar = "WAV_DIR",
   default = "",
-  help = "Direktorij s posnetki WAV.")
+  help = "Directory with WAV files.")
 optional.add_argument("-x",
   type = str,
   metavar = "XLSX_FILE",
   default = "",
-  help = "Po do datoteke XLSX s seznamom povedi.")
+  help = "XLSX filepath.")
 optional.add_argument("-s",
   type = int,
   metavar = "START_NUM",
   default = 1,
-  help = '''Indeks posnetka pri katerem začnemo validacijo. Prednastavljeno:
-    %(default)s (začnemo s prvim posnetkom).''')
+  help = '''Audio clip index at which the validation is started. Default:
+    %(default)s (start with first audio clip).''')
+optional.add_argument("-f",
+  type = float,
+  metavar = "SPEEDUP",
+  default = 1,
+  help = '''Audio playback speedup. Default:
+    %(default)s (should be greater or equal to 1).''')
+
 
 args = ap.parse_args()
 
@@ -80,14 +89,20 @@ plt.rc('legend', fontsize=SMALL_SIZE)
 plt.rc('figure', titlesize=BIGGER_SIZE)
 
 master = tk.Tk()
-master.title('Validacija posnetkov')
+master.title('Audio validation')
 
-def play_wav(wf):
+def speed_change(sound, speed=1.0):
+    sound_with_altered_frame_rate = sound._spawn(sound.raw_data, overrides={
+         "frame_rate": int(sound.frame_rate * speed)
+      })
+    return sound_with_altered_frame_rate.set_frame_rate(sound.frame_rate)
+
+def play_wav(wf, speed=1.0):
   if os.name == 'nt':
-    play(AudioSegment.from_wav(wf))
+    play(speed_change(AudioSegment.from_wav(wf), speed))
   else:
     with noalsaerr():
-      play(AudioSegment.from_wav(wf))
+      play(speed_change(AudioSegment.from_wav(wf), speed))
 
 def num_wrapper(text):
     """ Wraps num2words to allow mixed text-numeric types """
@@ -113,7 +128,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
   xlsx_names = xtext['ID koda govorca:'].to_list()
   missing_wavs = np.setdiff1d(xlsx_names, wav_names)
   if missing_wavs.size:
-    print('Manjkajoči posnetki:')
+    print('Missing files:')
     for mw in missing_wavs:
       print(mw)
       xtext.loc[xtext.iloc[:,0] == mw, 'opomba'] = 'manjkajoč posnetek'
@@ -127,7 +142,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     reason = []
     cmnt = []
     fname = os.path.basename(wf)
-    master.title('Validacija posnetka %s (%i/%i)'%(fname,c+start_num,len(wav_files)))
+    master.title('Validation of the file %s (%i/%i)'%(fname,c+start_num,len(wav_files)))
     sox_stats = tfm.stats(wf)
     sox_stats2 = sox.file_info.stat(wf)
     SNR_sox = float(sox_stats['RMS Pk dB']) - float(sox_stats['RMS Tr dB'])
@@ -135,17 +150,17 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
     all_stats = {**sox_stats, **sox_stats2}
     stats_label.config(text = '\n'.join("{}: {}".format(k, d) for k, d in all_stats.items()))
 
-    print('Preverjanje formata zapisa:')
+    print('Audio format check:')
     stats = sf.info(wf)
     if (stats.samplerate != 44100 or stats.channels != 1 or 
         stats.format != "WAV" or stats.subtype != "PCM_16"):
-      print("    Format zapisa NI v skladu z zahtevami.")
+      print("    Wrong format.")
       reason.append("neustrezen format zapisa (vzorcenje: %d, kanali: %d,"
         "format: %s, podtip: %s)"
         %(stats.samplerate, stats.channels, stats.format, stats.subtype))
       err.append('f')
     else:
-      print("    Format zapisa JE v skladu z zahtevami.")
+      print("    Correct format.")
 
     if xlsx_file is not None:
       fnm = os.path.splitext(fname)[0]
@@ -156,11 +171,12 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       target_txt_clean = target_txt_clean.rstrip()
       target_txt_clean = target_txt_clean.lstrip()
       man_switch = 0
-      print("Preverjanje skladnosti z besedilom:")
-      print('    Referenčno besedilo:  "%s"'%target_txt)
+      print("Compliance with the reference text:")
+      print('    Reference text:  "%s"'%target_txt)
       if mode == 0:
         txt_label.delete('1.0', tk.END)
-        txt_label.insert(tk.INSERT, "Referenčno besedilo:\n%s"%target_txt)
+        txt_label.insert(tk.INSERT, "Reference text:\n%s"%target_txt)
+        master.update()
       elif mode == 1 or mode == 2: #recognize speech in auto and semiauto mode
         try:
           with sr.AudioFile(wf) as audio_src:
@@ -168,17 +184,17 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             spoken_txt = r.recognize_google(audio_data, language="sl-SL")
             spoken_txt = re.sub('-', ' ', spoken_txt)
             spoken_txt = num_wrapper(spoken_txt)
-            print('    Razpoznano besedilo: "%s"'%spoken_txt)
+            print('    Spoken text: "%s"'%spoken_txt)
             txt_wer = wer(spoken_txt, target_txt_clean)
             if txt_wer > sim_thresh:
               if mode == 1:
-                print('    Posnetek NI skladen z besedilom (WER = %.2f).'%txt_wer)
+                print('    Audio does not comply with reference text (WER = %.2f).'%txt_wer)
                 reason.append('neskladje z besedilom (WER = %.2f)'%txt_wer)
                 err.append('b')
             else:
-              print('    Posnetek JE skladen z besedilom (WER = %.2f).'%txt_wer)
+              print('    Audio complies with reference text (WER = %.2f).'%txt_wer)
           txt_label.delete('1.0', tk.END)
-          txt_label.insert(tk.INSERT, "Referenčno besedilo:\n%s\n\nRazpoznano besedilo:\n%s\n\nWER = %.3f"%(target_txt_clean, spoken_txt, txt_wer))
+          txt_label.insert(tk.INSERT, "Reference text:\n%s\n\nSpoken text:\n%s\n\nWER = %.3f"%(target_txt_clean, spoken_txt, txt_wer))
 
           seqm = dl.SequenceMatcher(None, target_txt_clean, spoken_txt)
           for opcode, a0, a1, b0, b1 in seqm.get_opcodes():
@@ -194,23 +210,25 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
               txt_label.tag_add("del", "2.%d"%a0, "2.%d"%a1)
               txt_label.tag_add("del", "5.%d"%b0, "5.%d"%b1)
               txt_label.tag_config("del", foreground="red")
-
           master.update()
         except:
-          print('Besedila ni bilo možno samodejno razpoznati. Preklapljam na ročni način.')
+          print('Text could not be automatically recognized. Switching to manual mode.')
           man_switch = 1
+          txt_wer = np.inf
+          txt_label.delete('1.0', tk.END)
+          txt_label.insert(tk.INSERT, "Reference text:\n%s"%target_txt)
+          master.update()
       if mode == 0 or (mode ==2 and (txt_wer > sim_thresh)) or man_switch:
-        master.update()
-        play_wav(wf)
-        print("    Odgovori s pritiskom na ustrezen gumb ali bližnjico na tipkovnici: Da <space>, Ne <n>, Ponovi <p>, Opomba <o>.")
+        play_wav(wf, args.f)
+        print("    Answer by pressing dedicated button or keyboard shortcut: Yes <space>, No <n>, Repeat <p>, Comment <o>.")
         qvar_txt = tk.IntVar()
-        yes_txt = tk.Button(txt_frame, text = "Da", command=lambda: qvar_txt.set(1))
+        yes_txt = tk.Button(txt_frame, text = "Yes", command=lambda: qvar_txt.set(1))
         master.bind('<space>', lambda e: qvar_txt.set(1))
-        no_txt = tk.Button(txt_frame, text = "Ne", command=lambda: qvar_txt.set(2))
+        no_txt = tk.Button(txt_frame, text = "No", command=lambda: qvar_txt.set(2))
         master.bind('n', lambda e: qvar_txt.set(2))
-        repeat_txt = tk.Button(txt_frame, text = "Ponovitev", command=lambda: qvar_txt.set(3))
+        repeat_txt = tk.Button(txt_frame, text = "Repeat", command=lambda: qvar_txt.set(3))
         master.bind('p', lambda e: qvar_txt.set(3))
-        cmnt_txt = tk.Button(txt_frame, text="Opomba", command=lambda: qvar_txt.set(4))
+        cmnt_txt = tk.Button(txt_frame, text="Comment", command=lambda: qvar_txt.set(4))
         master.bind('o', lambda e: qvar_txt.set(4))
         while True:
           yes_txt.grid(row=2, column=0)
@@ -225,10 +243,10 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           cmnt_txt.grid_forget()
           master.update()
           if qvar_txt.get() == 1: #Odg:Da
-            print('    Posnetek JE skladen z besedilom.')
+            print('    Audio is compliant with the reference text.')
             break
           elif qvar_txt.get() == 2: #Odg:Ne
-            print('    Posnetek NI skladen z besedilom. Dodaj opcijsko opombo kje je prišlo do neskladja, npr.: "del referenčnega besedila, kjer je prišlo do neskladja" ~ "pripadajoče izgovorjeno besedilo".')
+            print('    Audio is not compliant with the reference text. Add optional comment explaining non-matching part')
             reason.append('neskladje z besedilom')
             err.append('b')
             descr = popup_description('neskladje z besedilom (ref.: "", izg.: "")')
@@ -269,6 +287,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       vcolr = 'r'
       fail_string.append("glasnost: %.1f dBFS"%vol_mean)
 
+    print("Non-speech length and audio volume check:")
     if mode == 0 or (mode==2 and fail_string): #manual or failed semiautomatic
       SEGMENT_MS = 5
       speech = AudioSegment.from_file(wf)
@@ -277,8 +296,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       volume = [segment.dBFS for segment in speech[::SEGMENT_MS]]
       t_vol = np.arange(len(volume))*(SEGMENT_MS / 1000)
 
-      print("Preverjanje začetne in končne tišine ter glasnosti:")
-      print('    Začetni premor: %.2f s, končni premor: %.2f s'%(t_ini, t_fin))
+      print('    Initial silence length: %.2f s, final silence length: %.2f s'%(t_ini, t_fin))
       t_end = len(data)/rate
       ax1 = plt.subplot(311)
       plt.plot( np.linspace(0,t_ini,len(data[:int(t_ini*rate)])),
@@ -296,10 +314,13 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       plt.axhline(y=-.5, color='k', linestyle='--')
       plt.ylim([-1, 1])
       plt.xlim(0,t_end)
-      plt.xlabel("Čas [s]")
-      plt.ylabel("Amplituda")
-      ax1.set_title("Začetni premor: %.2f s, končni premor: %.2f s"%
+      plt.xlabel("Time[s]")
+      plt.ylabel("Amplitude")
+      ax1.set_title("Initial silence: %.2f s, final silence: %.2f s"%
         (t_ini, t_fin), color=pcolr)
+      #plt.xlabel("$\mathrm{Time}[s]$")
+      #plt.ylabel("$\mathrm{Amplitude}$")
+      #fig.savefig("tmp.pdf", bbox_inches="tight",format="pdf")
 
       ax2 = plt.subplot(312)
       if data.ndim > 1:
@@ -307,33 +328,33 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       else:
         plt.specgram(data,Fs=rate)
       plt.xlim(0, t_end)
-      plt.xlabel("Čas [s]")
-      plt.ylabel("Frekvenca [Hz]")
-      ax2.set_title("Spektrogram")
+      plt.xlabel("Time [s]")
+      plt.ylabel("Frequency [Hz]")
+      ax2.set_title("Spectrogram")
       
       ax3 = plt.subplot(313)
       plt.plot(t_vol[:t_ini_v], volume[:t_ini_v],'r')
       plt.plot(t_vol[t_ini_v:-t_fin_v], volume[t_ini_v:-t_fin_v],'g')
-      ax3.set_title("Maks.: %.2f dBFS, povpr.: %.2f dBFS"%
+      ax3.set_title("Max.: %.2f dBFS, mean: %.2f dBFS"%
       (speech.max_dBFS, vol_mean), color=vcolr)
       plt.plot(t_vol[-t_fin_v:], volume[-t_fin_v:],'r')
       plt.axhline(y=-6, color='k', linestyle='--')
       plt.axhline(y=-18, color='k', linestyle='--')
       plt.xlim(0, t_end)
-      plt.xlabel("Čas[s]")
-      plt.ylabel("Glasnost[dBFS]")
+      plt.xlabel("Time[s]")
+      plt.ylabel("Volume[dBFS]")
       plt.tight_layout()
       fig.canvas.draw()
 
       if mode==2 and (txt_wer <= sim_thresh): #passed semiautomatic
-        play_wav(wf)
-      print("    Odgovori s pritiskom na ustrezen gumb ali bližnjico na tipkovnici: Da <space>, Ne <n>, Opomba <o>.")
+        play_wav(wf, args.f)
+      print("    Answer by pressing the dedicated button or key: Yes <space>, No <n>, Comment <o>.")
       qvar_time = tk.IntVar()
-      yes_tm = tk.Button(timing_frame, text = "Da", command=lambda: qvar_time.set(1))
+      yes_tm = tk.Button(timing_frame, text = "Yes", command=lambda: qvar_time.set(1))
       master.bind('<space>', lambda e: qvar_time.set(1))
-      no_tm = tk.Button(timing_frame, text = "Ne", command=lambda: qvar_time.set(2))
+      no_tm = tk.Button(timing_frame, text = "No", command=lambda: qvar_time.set(2))
       master.bind('n', lambda e: qvar_time.set(2))
-      cmnt_tm = tk.Button(timing_frame, text="Opomba", command=lambda: qvar_time.set(3))
+      cmnt_tm = tk.Button(timing_frame, text="Comment", command=lambda: qvar_time.set(3))
       master.bind('o', lambda e: qvar_time.set(3))
       while True:
         yes_tm.grid(row=1, column=1)
@@ -348,7 +369,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         plt.clf()
         fig.canvas.draw()
         if qvar_time.get() == 1:
-          print('    Premori in glasnost ustrezajo zahtevam.')
+          print('    Non-speech sections and audio volume meet the requirements.')
           break
         elif qvar_time.get() == 2:
           if fail_string:
@@ -356,7 +377,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           else:
             reason.append('premori in/ali glasnost niso ustrezni')
           err.append('p')
-          print('    Premori in/ali glasnost NE ustrezajo zahtevam. Dodaj opcijsko opombo o neustreznosti premorov/glasnosti.')
+          print('    Non-speech sections and/or audio volume do not meet the requirements. Add optional comment.')
           descr = popup_description(( "; ".join(fail_string)).replace(".",","))
           if descr:
             reason[-1] = descr
@@ -364,14 +385,13 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         elif qvar_time.get() == 3:
           cmnt.append(popup_description())
     else: #automatic or passed semiautomatic
-      print("Preverjanje začetne in končne tišine ter glasnosti:")
       if fail_string:
-        print('    Premori in/ali glasnost NE ustrezajo zahtevam.')
+        print('    Non-speech sections and/or audio volume do not meet the requirements..')
         fail_string.append("(SNR: %.1f, SNR_sox: %.1f)"%(SNR, SNR_sox))
         reason.append("; ".join(fail_string))
         err.append('p')
       else:
-        print('    Premori in glasnost ustrezajo zahtevam.')
+        print('    Non-speech sections and audio volume meet the requirements.')
     fig.clf()
     master.update()
 
@@ -397,8 +417,8 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
 
 def popup_warning():
   window = tk.Toplevel()
-  window.title('Opozorilo')
-  label = tk.Label(window, text="Najprej definiraj mapo s posnetki WAV, besedilno datoteko XSLX in način delovanja!")
+  window.title('Warning')
+  label = tk.Label(window, text="First define the WAV directory, XSLX file and operating mode!")
   label.pack(fill='x', padx=50, pady=5)
   button_close = tk.Button(window, text="Close", command=window.destroy)
   button_close.pack(fill='x')
@@ -408,14 +428,14 @@ def popup_description(default_text=''):
    pass
   window = tk.Toplevel()
   window.protocol("WM_DELETE_WINDOW", disable_esc)
-  window.title('Dodaj opombo')
+  window.title('Add comment')
   desc_entry= tk.Entry(window, width= 130)
   desc_entry.insert(tk.END, default_text)
   desc_entry.pack()
   close_var = tk.IntVar()
-  button_close = tk.Button(window, text="Zapri", command=lambda: close_var.set(1))
+  button_close = tk.Button(window, text="Close", command=lambda: close_var.set(1))
   button_close.pack(fill='x')
-  print('    Za zaprtje pojavnega okna pritisni gumb "Zapri" ali tipko <Enter>.')
+  print('    To close the pop-up window press "Close" button or <Enter> key.')
   window.bind('<Return>', lambda e: close_var.set(1))
   button_close.wait_variable(close_var)
   descr = desc_entry.get()
@@ -437,7 +457,7 @@ def on_exit():
     os._exit(1)
 
 def set_operating_mode(*entry):
-  if mode_var.get() == 'samodejni' or mode_var.get() == 'polsamodejni':
+  if mode_var.get() == 'automatic' or mode_var.get() == 'semiautomatic':
     print('Vnesi prag WER med razpoznanim in '
     'zahtevanim besedilom, pod katerim smatramo, da se posnetek in ciljno '
     'besedilo ne skladata. (Vrednosti med 0 in 1. 0: sprejmemo le posnetke, pri katerih se '
@@ -448,7 +468,7 @@ def set_operating_mode(*entry):
     sim_thresh.grid()
     sim_thresh.delete(0, 'end')
     sim_thresh.insert(tk.END, 0.0)
-  elif mode_var.get() == 'ročni':
+  elif mode_var.get() == 'manual':
     sim_label.grid_forget()
     sim_thresh.grid_forget()
     sim_thresh.delete(0, 'end')
@@ -456,70 +476,70 @@ def set_operating_mode(*entry):
 
 master.protocol('WM_DELETE_WINDOW', on_exit)
 
-print('Vnesi vhodne parametre.')
-param_frame = tk.LabelFrame(master, text="(1) Vhodni parametri")
+print('Enter input parameters.')
+param_frame = tk.LabelFrame(master, text="(1) Input parameters")
 param_frame.grid(row=0, column=0, padx=5, pady=5)
 
-tk.Label(param_frame, text="Mapa s posnetki WAV:").grid()
+tk.Label(param_frame, text="WAV directory:").grid()
 wav_entry = tk.Entry(param_frame, text="", width=40)
 wav_entry.insert(tk.END, args.w)
 wav_entry.grid()
 wav_browse = tk.Button(param_frame, text="Browse", command=select_wav_dir)
 wav_browse.grid()
   
-tk.Label(param_frame, text="Besedilna datoteka XLSX:").grid()
+tk.Label(param_frame, text="XLSX file:").grid()
 xlsx_entry = tk.Entry(param_frame, text="", width=40)
 xlsx_entry.insert(tk.END, args.x)
 xlsx_entry.grid()
 xlsx_browse = tk.Button(param_frame, text="Browse", command=select_xlsx_file)
 xlsx_browse.grid()
 
-tk.Label(param_frame, text="Začetni posnetek:").grid()
+tk.Label(param_frame, text="Starting index:").grid()
 start_num = tk.Entry(param_frame, text="", width=4, justify='right')
 start_num.grid()
 start_num.insert(tk.END, args.s)
 
-mode_label = tk.Label(param_frame, text="Način delovanja:")
+mode_label = tk.Label(param_frame, text="Operating mode:")
 mode_label.grid()
-mode_choices = ['ročni', 'samodejni', 'polsamodejni']
+mode_choices = ['manual', 'automatic', 'semiautomatic']
 mode_var = tk.StringVar(master)
 w = tk.OptionMenu(param_frame, mode_var, *mode_choices, command=set_operating_mode)
 w.grid()
-mode_map = {'ročni':0, 'samodejni':1, 'polsamodejni':2}
+mode_map = {'manual':0, 'automatic':1, 'semiautomatic':2}
 
-sim_label = tk.Label(param_frame, text="Prag zavrnitve (WER):")
+sim_label = tk.Label(param_frame, text="Rejection threshold (WER):")
 sim_thresh = tk.Entry(param_frame, text="", width=4, justify='right')
 
 start_var = tk.IntVar()
-start_btn = tk.Button(master, text="Zaženi", command=lambda: start_var.set(1))
+start_btn = tk.Button(master, text="Run", command=lambda: start_var.set(1))
 start_btn.grid()
 
-txt_frame = tk.LabelFrame(master, text="(2) Skladnost z besedilom?")
+txt_frame = tk.LabelFrame(master, text="(2) Compliance with the reference text?")
 txt_frame.grid(row=2, column=0,padx=5, pady=5)
 txt_label = tk.Text(txt_frame, width=40, height=11, wrap="word")
 txt_label.config(state=tk.NORMAL, font = ("Helvetica", 11))
 txt_label.grid(columnspan=4)
 
-timing_frame = tk.LabelFrame(master, text="(3) Ustrezni začetni in končni premor ter glasnost?")
+timing_frame = tk.LabelFrame(master, text="(3) Non-speech segments lengths and speech volume?")
 timing_frame.grid(row=0, column=1, rowspan=3, padx=5, pady=5)
 fig = plt.figure()
 fig.set_figwidth(4)
 canvas = FigureCanvasTkAgg(fig, master=timing_frame)
 canvas.get_tk_widget().grid(row=0,column=1,columnspan=3)
 
-accept_frame = tk.LabelFrame(master, text="Sprejeti posnetki")
+accept_frame = tk.LabelFrame(master, text="Accepted recordings")
 accept_frame.grid(row=0, column=2, rowspan=1, padx=5, pady=5)
 accept_area = st.ScrolledText(accept_frame, wrap = tk.WORD, 
               width = 30, height = 14, font = ("Helvetica", 10))
 accept_area.grid()
 
-reject_frame = tk.LabelFrame(master, text="Zavrnjeni posnetki")
+reject_frame = tk.LabelFrame(master, text="Rejected recordings")
 reject_frame.grid(row=1, column=2, rowspan=2, padx=5, pady=5)
 reject_area = st.ScrolledText(reject_frame, wrap = tk.WORD, 
               width = 30, height = 14, font = ("Helvetica", 10))
 reject_area.grid()
 
-stats_frame = tk.LabelFrame(master, text="Statistični podatki")
+stats_frame = tk.LabelFrame(master, text="Statistical data")
 stats_frame.grid(row=0, column=3, rowspan=3, padx=5, pady=5)
 stats_label = tk.Label(stats_frame, text = "", wraplength=300, font=("Helvetica", 10))
 stats_label.grid(rowspan=2)

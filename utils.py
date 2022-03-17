@@ -124,43 +124,43 @@ def vad_collector(sample_rate, frame_duration_ms,
 
 def speech_trim(raw_args=None):
   ap = argparse.ArgumentParser(description = 
-  'Skripta za prirez začetnih in končnih premorov v govornih datotekah tipa WAW.')
+  'Estimate initial/final silence lengths and crop the WAV file accordingly.')
   ap._action_groups.pop()
   required = ap.add_argument_group('required arguments')
   optional = ap.add_argument_group('optional arguments')
   required.add_argument('-i',
     type = str,
-    help = 'Vhodna datoteka ali direktorij s posnetki WAV.')
+    help = 'Input WAV file or directory containing WAV files.')
   optional.add_argument('-o',
     type = str,
-    help = 'Izhodna datoteka ali direktorij s posnetki WAV.')
+    help = 'Output WAV file or director where cropped WAV files will be stored.')
   optional.add_argument('-v', 
     action='store_true',
-    help = 'Argument s katerim vključimo izpis na konzolo.')
+    help = 'Verbose flag.')
   optional.add_argument('-p', 
     type=float,
     default=0.8,
-    help = 'Dolžina premora v sekundah.')
+    help = 'Desired initial/final silence length in seconds.')
   optional.add_argument('-t', 
     type=int,
     default=-36,
-    help = 'Prag tišine v dbFS.')
+    help = 'Silence threshold in dbFS.')
   optional.add_argument('-c', 
     type=int,
     default=75,
-    help = 'Odsek procesiranja v ms.')
+    help = 'Processing step in milliseconds.')
   optional.add_argument('-a', 
     type=int,
     default=3,
-    help = 'Stopnja filtriranje negovornih odsekov (vrendnost med 0 in 3).')
+    help = 'Aggressiveness mode, which is an integer between 0 and 3. 0 is the least aggressive about filtering out non-speech, 3 is the most aggressive.')
   optional.add_argument('-m', 
     type=float,
     default=0.5,
-    help = 'Največja dovoljena dolžina vmesnega premora znotraj govornega odseka.')
+    help = 'Longest intermediate silence length within the speech section (in seconds).')
   optional.add_argument('-d', 
     type=float,
     default=0.75,
-    help = 'Minimalna dolžina govornega signala.')
+    help = 'Minimum speech length (in seconds).')
   args = ap.parse_args(raw_args)
   
   if os.path.isfile(args.i):
@@ -210,13 +210,13 @@ def speech_trim(raw_args=None):
       sf.write(out_path, data[int((leading_trim)*rate):int((t_end-trailing_trim)*rate)], rate)
     # Plot signal and detected silence
     if args.v:
-      print('\nVhodni posnetek: %s'%wav)
-      print('Ocenjen začetni premor: %.1f'%t_ini)
-      print('Ocenjen končni premor: %.1f'%t_fin)
-      print('Dolžina začetnega obreza: %.1f s'%leading_trim)
-      print('Dolžina končnega obreza: %.1f s'%trailing_trim)
-      if t_ini < 0.5: print('\tPOZOR: Premajhen začetni premor.')
-      if t_fin < 0.5: print('\tPOZOR: Premajhen končni premor.')
+      print('\nInput file: %s'%wav)
+      print('Estimated initial silence length: %.1f'%t_ini)
+      print('Estimated final silence length: %.1f'%t_fin)
+      print('Initial crop: %.1f s'%leading_trim)
+      print('Final crop: %.1f s'%trailing_trim)
+      if t_ini < 0.5: print('\tWARNING: Initial silence too short.')
+      if t_fin < 0.5: print('\tWARNING: Final silence too short.')
       fig, ax = plt.subplots()
       plt.plot( np.linspace(0,t_ini,len(data[:int(t_ini*rate)])),
         data[:int(t_ini*rate)], 'r')
@@ -233,9 +233,9 @@ def speech_trim(raw_args=None):
       plt.axhline(y=-.5, color='k', linestyle='--')
       plt.ylim([-1, 1])
       plt.xlim(0,t_end)
-      plt.xlabel('Čas [s]')
-      plt.ylabel('Amplituda')
-      ax.set_title('Začetni premor: %.2f s, končni premor: %.2f s'%(t_ini, t_fin))
+      plt.xlabel('Time [s]')
+      plt.ylabel('Amplitude')
+      ax.set_title('Initial silence: %.2f s, final silence: %.2f s'%(t_ini, t_fin))
       plt.show()
     tini.append(t_ini)
     tfin.append(t_fin)
