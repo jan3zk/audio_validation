@@ -92,10 +92,9 @@ master = tk.Tk()
 master.title('Audio validation')
 
 def speed_change(sound, speed=1.0):
-    sound_with_altered_frame_rate = sound._spawn(sound.raw_data, overrides={
-         "frame_rate": int(sound.frame_rate * speed)
-      })
-    return sound_with_altered_frame_rate.set_frame_rate(sound.frame_rate)
+  sound_with_altered_frame_rate = sound._spawn(sound.raw_data, overrides={
+    "frame_rate": int(sound.frame_rate * speed)})
+  return sound_with_altered_frame_rate.set_frame_rate(sound.frame_rate)
 
 def play_wav(wf, speed=1.0):
   if os.name == 'nt':
