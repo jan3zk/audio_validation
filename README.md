@@ -29,3 +29,8 @@ The [xlsx2txt.py](xlsx2txt.py) script generates a TXT file with a list of reject
 The [check_val.py](check_val.py) script checks if the numbers of recordings (#approved = #source - #rejected) match in the local and remote directories.
 
 The [remove_corrected.py](remove_corrected.py) script removes the corrected recordings from the XLSX list of rejected recordings.
+<!---
+## References
+
+[Križaj, Janez; Dobrišek, Simon. "Validacija zvočnih posnetkov pri izdelavi podatkovne zbirke za učenje razpoznavalnika slovenščine", 30th International Electrotechnical and Computer Science Conference, Portorož, Slovenia, pp. 382-385, 2021](https://erk.fe.uni-lj.si/2021/papers/krizaj(validacija_zvocnih).pdf)
+--->

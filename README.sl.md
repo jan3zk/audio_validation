@@ -29,3 +29,8 @@ Skripta [xlsx2txt.py](xlsx2txt.py) iz vhodne datoteke xlsx z označenimi zavrnje
 Skripta [check_val.py](check_val.py) preveri ujemanje števila posnetkov ( #odobreni = #izvorni - #zavrnjeni) v lokalnih mapah in pripadajočih mapah na strežniku.
 
 Skripta [remove_corrected.py](remove_corrected.py) odstrani zaznamke popravljenih posnetkov iz xlsx seznama z zavrnjenimi posnetki.  
+<!---
+## Viri
+
+[Križaj, Janez; Dobrišek, Simon. "Validacija zvočnih posnetkov pri izdelavi podatkovne zbirke za učenje razpoznavalnika slovenščine", Trideseta mednarodna Elektrotehniška in računalniška konferenca, Portorož, Slovenija, str. 382-385, 2021](https://erk.fe.uni-lj.si/2021/papers/krizaj(validacija_zvocnih).pdf)
+--->
