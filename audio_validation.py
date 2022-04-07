@@ -26,6 +26,7 @@ import pyloudnorm as pyln
 from utils import speech_trim
 from ctypes import *
 from contextlib import contextmanager
+# ~ import textdistance
 # ~ import matplotlib
 # ~ from matplotlib import rc
 # ~ matplotlib.rc('text', usetex = True)
@@ -129,8 +130,9 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
   if missing_wavs.size:
     print('Missing files:')
     for mw in missing_wavs:
-      print(mw)
-      xtext.loc[xtext.iloc[:,0] == mw, 'opomba'] = 'manjkajoč posnetek'
+      if '***' not in mw:
+        print(mw)
+        xtext.loc[xtext.iloc[:,0] == mw, 'opomba'] = 'manjkajoč posnetek'
 
   tfm = sox.Transformer()
   now = datetime.datetime.now()
@@ -171,7 +173,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       target_txt_clean = target_txt_clean.lstrip()
       man_switch = 0
       print("Compliance with the reference text:")
-      print('    Reference text:  "%s"'%target_txt)
+      print('    Reference text:  "%s"'%re.sub('\n|\r|\t|-', ' ', target_txt))
       if mode == 0:
         txt_label.delete('1.0', tk.END)
         txt_label.insert(tk.INSERT, "Reference text:\n%s"%target_txt)
@@ -184,6 +186,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             spoken_txt = re.sub('-', ' ', spoken_txt)
             spoken_txt = num_wrapper(spoken_txt)
             print('    Spoken text: "%s"'%spoken_txt)
+            #txt_wer = textdistance.levenshtein.normalized_similarity(spoken_txt, target_txt_clean)
             txt_wer = wer(spoken_txt, target_txt_clean)
             if txt_wer > sim_thresh:
               if mode == 1:
