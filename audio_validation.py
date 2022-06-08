@@ -27,9 +27,6 @@ from utils import speech_trim
 from ctypes import *
 from contextlib import contextmanager
 # ~ import textdistance
-# ~ import matplotlib
-# ~ from matplotlib import rc
-# ~ matplotlib.rc('text', usetex = True)
 
 
 # Handle pydub warnings
@@ -46,7 +43,7 @@ def noalsaerr():
 
 
 ap = argparse.ArgumentParser(
-  description = '''he tool assists the user in verifying several preset 
+  description = '''The tool assists the user in verifying several preset 
   audio requirements, such as the compliance with the reference text, 
   correct audio format, initial and final non-speech segments and audio volume.''')
 ap._action_groups.pop()
@@ -320,9 +317,6 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       plt.ylabel("Amplitude")
       ax1.set_title("Initial silence: %.2f s, final silence: %.2f s"%
         (t_ini, t_fin), color=pcolr)
-      #plt.xlabel("$\mathrm{Time}[s]$")
-      #plt.ylabel("$\mathrm{Amplitude}$")
-      #fig.savefig("tmp.pdf", bbox_inches="tight",format="pdf")
 
       ax2 = plt.subplot(312)
       if data.ndim > 1:
