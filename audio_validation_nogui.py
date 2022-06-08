@@ -52,23 +52,22 @@ def verify_audio(args):
 
   if args.t:
     r = sr.Recognizer()
-
-    target_txt_clean = re.sub(r'[^\w\s]','',args.t).lower()
-    target_txt_clean = re.sub('\n|\r|\t|-', ' ', target_txt_clean)
-    target_txt_clean = target_txt_clean.rstrip()
-    target_txt_clean = target_txt_clean.lstrip()
+    target_txt = re.sub(r'[^\w\s]','',args.t).lower()
+    target_txt = re.sub('\n|\r|\t|-', ' ', target_txt)
+    target_txt = target_txt.rstrip()
+    target_txt = target_txt.lstrip()
     with sr.AudioFile(args.w) as audio_src:
       audio_data = r.record(audio_src)
       spoken_txt = r.recognize_google(audio_data, language="sl-SL")
       spoken_txt = re.sub('-', ' ', spoken_txt)
       spoken_txt = num_wrapper(spoken_txt)
-      txt_lev = textdistance.levenshtein.normalized_similarity(spoken_txt, target_txt_clean)
-      txt_wer = wer(spoken_txt, target_txt_clean)
+      txt_lev = textdistance.levenshtein.normalized_similarity(spoken_txt, target_txt)
+      txt_wer = wer(spoken_txt, target_txt)
       if args.csv:
         print('%s, %.2f, %.2f'%(csv_stats, txt_wer, txt_lev))
       else:
         print('\nMatching with the reference text:')
-        print('Referenčno besedilo: "%s"'%re.sub('\n|\r|\t|-', ' ', target_txt_clean))
+        print('Referenčno besedilo: "%s"'%re.sub('\n|\r|\t|-', ' ', target_txt))
         print('Razpoznano besedilo: "%s"'%spoken_txt)
         print('WER: %.2f, LS: %.2f'%(txt_wer,txt_lev))
 
