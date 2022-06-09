@@ -168,6 +168,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       target_txt_clean = re.sub('\n|\r|\t|-', ' ', target_txt_clean)
       target_txt_clean = target_txt_clean.rstrip()
       target_txt_clean = target_txt_clean.lstrip()
+      target_txt_clean = re.sub(' +', ' ', target_txt_clean)
       man_switch = 0
       print("Compliance with the reference text:")
       print('    Reference text:  "%s"'%re.sub('\n|\r|\t|-', ' ', target_txt))
