@@ -26,7 +26,6 @@ import pyloudnorm as pyln
 from utils import speech_trim
 from ctypes import *
 from contextlib import contextmanager
-# ~ import textdistance
 
 
 # Handle pydub warnings
@@ -133,284 +132,284 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
 
   tfm = sox.Transformer()
   now = datetime.datetime.now()
-  rejfile = os.path.splitext(os.path.basename(xlsx_file))[0]+now.strftime("_%Y%m%d-%H%M%S")+os.path.splitext(xlsx_file)[-1]
-  xwriter = pd.ExcelWriter(rejfile, engine='openpyxl')
-  for c, wf in enumerate(wav_files[start_num-1:]):
-    err = []
-    reason = []
-    cmnt = []
-    fname = os.path.basename(wf)
-    master.title('Validation of the file %s (%i/%i)'%(fname,c+start_num,len(wav_files)))
-    sox_stats = tfm.stats(wf)
-    sox_stats2 = sox.file_info.stat(wf)
-    SNR_sox = float(sox_stats['RMS Pk dB']) - float(sox_stats['RMS Tr dB'])
-    print("\n%s (%i/%i)"%(fname, c+start_num, len(wav_files)))
-    all_stats = {**sox_stats, **sox_stats2}
-    stats_label.config(text = '\n'.join("{}: {}".format(k, d) for k, d in all_stats.items()))
+  rejfile = xlsx_file #os.path.splitext(os.path.basename(xlsx_file))[0]+now.strftime("_%Y%m%d-%H%M%S")+os.path.splitext(xlsx_file)[-1]
+  # ~ xwriter = pd.ExcelWriter(rejfile, engine='openpyxl')
+  with pd.ExcelWriter(xlsx_file, engine="openpyxl", mode="a", if_sheet_exists="replace") as xwriter:
+    # ~ xtext.to_excel(xwriter, index=False, sheet_name='povedi_za_snemanje')
+    for c, wf in enumerate(wav_files[start_num-1:]):
+      err = []
+      reason = []
+      cmnt = []
+      fname = os.path.basename(wf)
+      master.title('Validation of the file %s (%i/%i)'%(fname,c+start_num,len(wav_files)))
+      sox_stats = tfm.stats(wf)
+      sox_stats2 = sox.file_info.stat(wf)
+      SNR_sox = float(sox_stats['RMS Pk dB']) - float(sox_stats['RMS Tr dB'])
+      print("\n%s (%i/%i)"%(fname, c+start_num, len(wav_files)))
+      all_stats = {**sox_stats, **sox_stats2}
+      stats_label.config(text = '\n'.join("{}: {}".format(k, d) for k, d in all_stats.items()))
 
-    print('Audio format check:')
-    stats = sf.info(wf)
-    if (stats.samplerate != 44100 or stats.channels != 1 or 
-        stats.format != "WAV" or stats.subtype != "PCM_16"):
-      print("    Wrong format.")
-      reason.append("neustrezen format zapisa (vzorcenje: %d, kanali: %d,"
-        "format: %s, podtip: %s)"
-        %(stats.samplerate, stats.channels, stats.format, stats.subtype))
-      err.append('f')
-    else:
-      print("    Correct format.")
+      print('Audio format check:')
+      stats = sf.info(wf)
+      if (stats.samplerate != 44100 or stats.channels != 1 or 
+          stats.format != "WAV" or stats.subtype != "PCM_16"):
+        print("    Wrong format.")
+        reason.append("neustrezen format zapisa (vzorcenje: %d, kanali: %d,"
+          "format: %s, podtip: %s)"
+          %(stats.samplerate, stats.channels, stats.format, stats.subtype))
+        err.append('f')
+      else:
+        print("    Correct format.")
 
-    if xlsx_file is not None:
-      fnm = os.path.splitext(fname)[0]
-      target_txt = xtext[xtext.iloc[:,0] == fnm].iloc[:,1].values[0]
-      target_txt = re.sub('\n', ' ', target_txt)
-      target_txt_clean = re.sub(r'[^\w\s]','',target_txt).lower()
-      target_txt_clean = re.sub('\n|\r|\t|-', ' ', target_txt_clean)
-      target_txt_clean = target_txt_clean.rstrip()
-      target_txt_clean = target_txt_clean.lstrip()
-      target_txt_clean = re.sub(' +', ' ', target_txt_clean)
-      man_switch = 0
-      print("Compliance with the reference text:")
-      print('    Reference text:  "%s"'%re.sub('\n|\r|\t|-', ' ', target_txt))
-      if mode == 0:
-        txt_label.delete('1.0', tk.END)
-        txt_label.insert(tk.INSERT, "Reference text:\n%s"%target_txt)
-        master.update()
-      elif mode == 1 or mode == 2: #recognize speech in auto and semiauto mode
-        try:
-          with sr.AudioFile(wf) as audio_src:
-            audio_data = r.record(audio_src)
-            spoken_txt = r.recognize_google(audio_data, language="sl-SL")
-            spoken_txt = re.sub('-', ' ', spoken_txt)
-            spoken_txt = num_wrapper(spoken_txt)
-            print('    Spoken text: "%s"'%spoken_txt)
-            #txt_wer = textdistance.levenshtein.normalized_similarity(spoken_txt, target_txt_clean)
-            txt_wer = wer(spoken_txt, target_txt_clean)
-            if txt_wer > sim_thresh:
-              if mode == 1:
-                print('    Audio does not comply with reference text (WER = %.2f).'%txt_wer)
-                reason.append('neskladje z besedilom (WER = %.2f)'%txt_wer)
-                err.append('b')
-            else:
-              print('    Audio complies with reference text (WER = %.2f).'%txt_wer)
-          txt_label.delete('1.0', tk.END)
-          txt_label.insert(tk.INSERT, "Reference text:\n%s\n\nSpoken text:\n%s\n\nWER = %.3f"%(target_txt_clean, spoken_txt, txt_wer))
-
-          seqm = dl.SequenceMatcher(None, target_txt_clean, spoken_txt)
-          for opcode, a0, a1, b0, b1 in seqm.get_opcodes():
-            if opcode == 'insert':
-              txt_label.tag_add("ins", "2.%d"%a0, "2.%d"%a1)
-              txt_label.tag_add("ins", "5.%d"%b0, "5.%d"%b1)
-              txt_label.tag_config("ins", foreground="green")
-            elif opcode == 'replace':
-              txt_label.tag_add("rep", "2.%d"%a0, "2.%d"%a1)
-              txt_label.tag_add("rep", "5.%d"%b0, "5.%d"%b1)
-              txt_label.tag_config("rep", foreground="orange")
-            elif opcode == 'delete':
-              txt_label.tag_add("del", "2.%d"%a0, "2.%d"%a1)
-              txt_label.tag_add("del", "5.%d"%b0, "5.%d"%b1)
-              txt_label.tag_config("del", foreground="red")
-          master.update()
-        except:
-          print('Text could not be automatically recognized. Switching to manual mode.')
-          man_switch = 1
-          txt_wer = np.inf
+      if xlsx_file is not None:
+        fnm = os.path.splitext(fname)[0]
+        target_txt = xtext[xtext.iloc[:,0] == fnm].iloc[:,1].values[0]
+        target_txt = re.sub('\n', ' ', target_txt)
+        target_txt_clean = re.sub(r'[^\w\s]','',target_txt).lower()
+        target_txt_clean = re.sub('\n|\r|\t|-', ' ', target_txt_clean)
+        target_txt_clean = target_txt_clean.rstrip()
+        target_txt_clean = target_txt_clean.lstrip()
+        target_txt_clean = re.sub(' +', ' ', target_txt_clean)
+        man_switch = 0
+        print("Compliance with the reference text:")
+        print('    Reference text:  "%s"'%re.sub('\n|\r|\t|-', ' ', target_txt))
+        if mode == 0:
           txt_label.delete('1.0', tk.END)
           txt_label.insert(tk.INSERT, "Reference text:\n%s"%target_txt)
           master.update()
-      if mode == 0 or (mode ==2 and (txt_wer > sim_thresh)) or man_switch:
-        play_wav(wf, args.f)
-        print("    Answer by pressing dedicated button or keyboard shortcut: Yes <space>, No <n>, Repeat <p>, Comment <o>.")
-        qvar_txt = tk.IntVar()
-        yes_txt = tk.Button(txt_frame, text = "Yes", command=lambda: qvar_txt.set(1))
-        master.bind('<space>', lambda e: qvar_txt.set(1))
-        no_txt = tk.Button(txt_frame, text = "No", command=lambda: qvar_txt.set(2))
-        master.bind('n', lambda e: qvar_txt.set(2))
-        repeat_txt = tk.Button(txt_frame, text = "Repeat", command=lambda: qvar_txt.set(3))
-        master.bind('p', lambda e: qvar_txt.set(3))
-        cmnt_txt = tk.Button(txt_frame, text="Comment", command=lambda: qvar_txt.set(4))
-        master.bind('o', lambda e: qvar_txt.set(4))
+        elif mode == 1 or mode == 2: #recognize speech in auto and semiauto mode
+          try:
+            with sr.AudioFile(wf) as audio_src:
+              audio_data = r.record(audio_src)
+              spoken_txt = r.recognize_google(audio_data, language="sl-SL")
+              spoken_txt = re.sub('-', ' ', spoken_txt)
+              spoken_txt = num_wrapper(spoken_txt)
+              print('    Spoken text: "%s"'%spoken_txt)
+              txt_wer = wer(spoken_txt, target_txt_clean)
+              if txt_wer > sim_thresh:
+                if mode == 1:
+                  print('    Audio does not comply with reference text (WER = %.2f).'%txt_wer)
+                  reason.append('neskladje z besedilom (WER = %.2f)'%txt_wer)
+                  err.append('b')
+              else:
+                print('    Audio complies with reference text (WER = %.2f).'%txt_wer)
+            txt_label.delete('1.0', tk.END)
+            txt_label.insert(tk.INSERT, "Reference text:\n%s\n\nSpoken text:\n%s\n\nWER = %.3f"%(target_txt_clean, spoken_txt, txt_wer))
+
+            seqm = dl.SequenceMatcher(None, target_txt_clean, spoken_txt)
+            for opcode, a0, a1, b0, b1 in seqm.get_opcodes():
+              if opcode == 'insert':
+                txt_label.tag_add("ins", "2.%d"%a0, "2.%d"%a1)
+                txt_label.tag_add("ins", "5.%d"%b0, "5.%d"%b1)
+                txt_label.tag_config("ins", foreground="green")
+              elif opcode == 'replace':
+                txt_label.tag_add("rep", "2.%d"%a0, "2.%d"%a1)
+                txt_label.tag_add("rep", "5.%d"%b0, "5.%d"%b1)
+                txt_label.tag_config("rep", foreground="orange")
+              elif opcode == 'delete':
+                txt_label.tag_add("del", "2.%d"%a0, "2.%d"%a1)
+                txt_label.tag_add("del", "5.%d"%b0, "5.%d"%b1)
+                txt_label.tag_config("del", foreground="red")
+            master.update()
+          except:
+            print('Text could not be automatically recognized. Switching to manual mode.')
+            man_switch = 1
+            txt_wer = np.inf
+            txt_label.delete('1.0', tk.END)
+            txt_label.insert(tk.INSERT, "Reference text:\n%s"%target_txt)
+            master.update()
+        if mode == 0 or (mode ==2 and (txt_wer > sim_thresh)) or man_switch:
+          play_wav(wf, args.f)
+          print("    Answer by pressing dedicated button or keyboard shortcut: Yes <space>, No <n>, Repeat <p>, Comment <o>.")
+          qvar_txt = tk.IntVar()
+          yes_txt = tk.Button(txt_frame, text = "Yes", command=lambda: qvar_txt.set(1))
+          master.bind('<space>', lambda e: qvar_txt.set(1))
+          no_txt = tk.Button(txt_frame, text = "No", command=lambda: qvar_txt.set(2))
+          master.bind('n', lambda e: qvar_txt.set(2))
+          repeat_txt = tk.Button(txt_frame, text = "Repeat", command=lambda: qvar_txt.set(3))
+          master.bind('p', lambda e: qvar_txt.set(3))
+          cmnt_txt = tk.Button(txt_frame, text="Comment", command=lambda: qvar_txt.set(4))
+          master.bind('o', lambda e: qvar_txt.set(4))
+          while True:
+            yes_txt.grid(row=2, column=0)
+            no_txt.grid(row = 2, column = 1)
+            repeat_txt.grid(row = 2, column = 2)
+            cmnt_txt.grid(row = 2, column = 3)
+            master.update()
+            yes_txt.wait_variable(qvar_txt)
+            yes_txt.grid_forget()
+            no_txt.grid_forget()
+            repeat_txt.grid_forget()
+            cmnt_txt.grid_forget()
+            master.update()
+            if qvar_txt.get() == 1: #Odg:Da
+              print('    Audio is compliant with the reference text.')
+              break
+            elif qvar_txt.get() == 2: #Odg:Ne
+              print('    Audio is not compliant with the reference text. Add optional comment explaining non-matching part')
+              reason.append('neskladje z besedilom')
+              err.append('b')
+              descr = popup_description('neskladje z besedilom (ref.: "", izg.: "")')
+              if descr:
+                reason[-1] = descr
+              break
+            elif qvar_txt.get() == 3: #Odg: Ponovitev
+              play_wav(wf)
+              qvar_txt.set(0)
+            elif qvar_txt.get() == 4: #Odg: Opomba
+              cmnt.append(popup_description())
+              qvar_txt.set(0)
+
+      # Determine if initial and final pauses are appropriate
+      data, rate = sf.read(wf)
+      fail_string = []
+      meter = pyln.Meter(rate)
+      vol_mean = meter.integrated_loudness(data)
+      (t_ini, t_fin) = speech_trim(['-i', wf])
+
+      #Signal-to-noise ratio
+      speechRMS = np.sqrt(np.mean(data[int(t_ini*rate):-int(t_fin*rate)]**2))
+      noiseRMS = np.sqrt(np.mean(np.append(data[:int(t_ini*rate)],
+        data[-int(t_fin*rate):])**2))
+      SNR = 20*np.log10(speechRMS/noiseRMS)
+
+      pcolr = 'k'
+      PAUSE_TOL = 0.25 #allow PAUSE_TOL seconds tolerance for initial and final pause restriction
+      if t_ini < .5-PAUSE_TOL or t_ini > 1+PAUSE_TOL:
+        pcolr = 'r'
+        fail_string.append("začetni premor: %.1f s"%t_ini)
+      if t_fin < .5-PAUSE_TOL or t_fin > 1+PAUSE_TOL:
+        pcolr = 'r'
+        fail_string.append("končni premor: %.1f s"%t_fin)
+      vcolr = 'k'
+      SPEECH_VOLUME_THRESH = -27
+      if vol_mean < SPEECH_VOLUME_THRESH:
+        vcolr = 'r'
+        fail_string.append("glasnost: %.1f dBFS"%vol_mean)
+
+      print("Non-speech length and audio volume check:")
+      if mode == 0 or (mode==2 and fail_string): #manual or failed semiautomatic
+        SEGMENT_MS = 5
+        speech = AudioSegment.from_file(wf)
+        t_ini_v = int(t_ini*1000/SEGMENT_MS)
+        t_fin_v = int(t_fin*1000/SEGMENT_MS)
+        volume = [segment.dBFS for segment in speech[::SEGMENT_MS]]
+        t_vol = np.arange(len(volume))*(SEGMENT_MS / 1000)
+
+        print('    Initial silence length: %.2f s, final silence length: %.2f s'%(t_ini, t_fin))
+        t_end = len(data)/rate
+        ax1 = plt.subplot(311)
+        plt.plot( np.linspace(0,t_ini,len(data[:int(t_ini*rate)])),
+          data[:int(t_ini*rate)], 'r')
+        plt.plot( np.linspace(t_ini,t_end-t_fin,
+          len(data[int(t_ini*rate):int((t_end-t_fin)*rate)])),
+          data[int(t_ini*rate):int((t_end-t_fin)*rate)], 'g')
+        plt.plot( np.linspace(t_end-t_fin,t_end,
+          len(data[int((t_end-t_fin)*rate):])),
+          data[int((t_end-t_fin)*rate):], 'r')
+        plt.axvspan(0, .5, facecolor='r', alpha=.3)
+        plt.axvspan(t_end, t_end-.5, facecolor='r', alpha=.3)
+        plt.axvspan(1, t_end-1, facecolor='g', alpha=.3)
+        plt.axhline(y=.5, color='k', linestyle='--')
+        plt.axhline(y=-.5, color='k', linestyle='--')
+        plt.ylim([-1, 1])
+        plt.xlim(0,t_end)
+        plt.xlabel("Time[s]")
+        plt.ylabel("Amplitude")
+        ax1.set_title("Initial silence: %.2f s, final silence: %.2f s"%
+          (t_ini, t_fin), color=pcolr)
+
+        ax2 = plt.subplot(312)
+        if data.ndim > 1:
+          plt.specgram(data[:,0],Fs=rate)
+        else:
+          plt.specgram(data,Fs=rate)
+        plt.xlim(0, t_end)
+        plt.xlabel("Time [s]")
+        plt.ylabel("Frequency [Hz]")
+        ax2.set_title("Spectrogram")
+        
+        ax3 = plt.subplot(313)
+        plt.plot(t_vol[:t_ini_v], volume[:t_ini_v],'r')
+        plt.plot(t_vol[t_ini_v:-t_fin_v], volume[t_ini_v:-t_fin_v],'g')
+        ax3.set_title("Max.: %.2f dBFS, mean: %.2f dBFS"%
+        (speech.max_dBFS, vol_mean), color=vcolr)
+        plt.plot(t_vol[-t_fin_v:], volume[-t_fin_v:],'r')
+        plt.axhline(y=-6, color='k', linestyle='--')
+        plt.axhline(y=-18, color='k', linestyle='--')
+        plt.xlim(0, t_end)
+        plt.xlabel("Time[s]")
+        plt.ylabel("Volume[dBFS]")
+        plt.tight_layout()
+        fig.canvas.draw()
+
+        if mode==2 and (txt_wer <= sim_thresh): #passed semiautomatic
+          play_wav(wf, args.f)
+        print("    Answer by pressing the dedicated button or key: Yes <space>, No <n>, Comment <o>.")
+        qvar_time = tk.IntVar()
+        yes_tm = tk.Button(timing_frame, text = "Yes", command=lambda: qvar_time.set(1))
+        master.bind('<space>', lambda e: qvar_time.set(1))
+        no_tm = tk.Button(timing_frame, text = "No", command=lambda: qvar_time.set(2))
+        master.bind('n', lambda e: qvar_time.set(2))
+        cmnt_tm = tk.Button(timing_frame, text="Comment", command=lambda: qvar_time.set(3))
+        master.bind('o', lambda e: qvar_time.set(3))
         while True:
-          yes_txt.grid(row=2, column=0)
-          no_txt.grid(row = 2, column = 1)
-          repeat_txt.grid(row = 2, column = 2)
-          cmnt_txt.grid(row = 2, column = 3)
+          yes_tm.grid(row=1, column=1)
+          no_tm.grid(row = 1, column = 2)
+          cmnt_tm.grid(row = 1, column = 3)
           master.update()
-          yes_txt.wait_variable(qvar_txt)
-          yes_txt.grid_forget()
-          no_txt.grid_forget()
-          repeat_txt.grid_forget()
-          cmnt_txt.grid_forget()
+          yes_tm.wait_variable(qvar_time)
+          yes_tm.grid_forget()
+          no_tm.grid_forget()
+          cmnt_tm.grid_forget()
           master.update()
-          if qvar_txt.get() == 1: #Odg:Da
-            print('    Audio is compliant with the reference text.')
+          plt.clf()
+          fig.canvas.draw()
+          if qvar_time.get() == 1:
+            print('    Non-speech sections and audio volume meet the requirements.')
             break
-          elif qvar_txt.get() == 2: #Odg:Ne
-            print('    Audio is not compliant with the reference text. Add optional comment explaining non-matching part')
-            reason.append('neskladje z besedilom')
-            err.append('b')
-            descr = popup_description('neskladje z besedilom (ref.: "", izg.: "")')
+          elif qvar_time.get() == 2:
+            if fail_string:
+              reason.append("; ".join(fail_string))
+            else:
+              reason.append('premori in/ali glasnost niso ustrezni')
+            err.append('p')
+            print('    Non-speech sections and/or audio volume do not meet the requirements. Add optional comment.')
+            descr = popup_description(( "; ".join(fail_string)).replace(".",","))
             if descr:
               reason[-1] = descr
             break
-          elif qvar_txt.get() == 3: #Odg: Ponovitev
-            play_wav(wf)
-            qvar_txt.set(0)
-          elif qvar_txt.get() == 4: #Odg: Opomba
+          elif qvar_time.get() == 3:
             cmnt.append(popup_description())
-            qvar_txt.set(0)
-
-    # Determine if initial and final pauses are appropriate
-    data, rate = sf.read(wf)
-    fail_string = []
-    meter = pyln.Meter(rate)
-    vol_mean = meter.integrated_loudness(data)
-    (t_ini, t_fin) = speech_trim(['-i', wf])
-
-    #Signal-to-noise ratio
-    speechRMS = np.sqrt(np.mean(data[int(t_ini*rate):-int(t_fin*rate)]**2))
-    noiseRMS = np.sqrt(np.mean(np.append(data[:int(t_ini*rate)],
-      data[-int(t_fin*rate):])**2))
-    SNR = 20*np.log10(speechRMS/noiseRMS)
-
-    pcolr = 'k'
-    PAUSE_TOL = 0.25 #allow PAUSE_TOL seconds tolerance for initial and final pause restriction
-    if t_ini < .5-PAUSE_TOL or t_ini > 1+PAUSE_TOL:
-      pcolr = 'r'
-      fail_string.append("začetni premor: %.1f s"%t_ini)
-    if t_fin < .5-PAUSE_TOL or t_fin > 1+PAUSE_TOL:
-      pcolr = 'r'
-      fail_string.append("končni premor: %.1f s"%t_fin)
-    vcolr = 'k'
-    SPEECH_VOLUME_THRESH = -27
-    if vol_mean < SPEECH_VOLUME_THRESH:
-      vcolr = 'r'
-      fail_string.append("glasnost: %.1f dBFS"%vol_mean)
-
-    print("Non-speech length and audio volume check:")
-    if mode == 0 or (mode==2 and fail_string): #manual or failed semiautomatic
-      SEGMENT_MS = 5
-      speech = AudioSegment.from_file(wf)
-      t_ini_v = int(t_ini*1000/SEGMENT_MS)
-      t_fin_v = int(t_fin*1000/SEGMENT_MS)
-      volume = [segment.dBFS for segment in speech[::SEGMENT_MS]]
-      t_vol = np.arange(len(volume))*(SEGMENT_MS / 1000)
-
-      print('    Initial silence length: %.2f s, final silence length: %.2f s'%(t_ini, t_fin))
-      t_end = len(data)/rate
-      ax1 = plt.subplot(311)
-      plt.plot( np.linspace(0,t_ini,len(data[:int(t_ini*rate)])),
-        data[:int(t_ini*rate)], 'r')
-      plt.plot( np.linspace(t_ini,t_end-t_fin,
-        len(data[int(t_ini*rate):int((t_end-t_fin)*rate)])),
-        data[int(t_ini*rate):int((t_end-t_fin)*rate)], 'g')
-      plt.plot( np.linspace(t_end-t_fin,t_end,
-        len(data[int((t_end-t_fin)*rate):])),
-        data[int((t_end-t_fin)*rate):], 'r')
-      plt.axvspan(0, .5, facecolor='r', alpha=.3)
-      plt.axvspan(t_end, t_end-.5, facecolor='r', alpha=.3)
-      plt.axvspan(1, t_end-1, facecolor='g', alpha=.3)
-      plt.axhline(y=.5, color='k', linestyle='--')
-      plt.axhline(y=-.5, color='k', linestyle='--')
-      plt.ylim([-1, 1])
-      plt.xlim(0,t_end)
-      plt.xlabel("Time[s]")
-      plt.ylabel("Amplitude")
-      ax1.set_title("Initial silence: %.2f s, final silence: %.2f s"%
-        (t_ini, t_fin), color=pcolr)
-
-      ax2 = plt.subplot(312)
-      if data.ndim > 1:
-        plt.specgram(data[:,0],Fs=rate)
-      else:
-        plt.specgram(data,Fs=rate)
-      plt.xlim(0, t_end)
-      plt.xlabel("Time [s]")
-      plt.ylabel("Frequency [Hz]")
-      ax2.set_title("Spectrogram")
-      
-      ax3 = plt.subplot(313)
-      plt.plot(t_vol[:t_ini_v], volume[:t_ini_v],'r')
-      plt.plot(t_vol[t_ini_v:-t_fin_v], volume[t_ini_v:-t_fin_v],'g')
-      ax3.set_title("Max.: %.2f dBFS, mean: %.2f dBFS"%
-      (speech.max_dBFS, vol_mean), color=vcolr)
-      plt.plot(t_vol[-t_fin_v:], volume[-t_fin_v:],'r')
-      plt.axhline(y=-6, color='k', linestyle='--')
-      plt.axhline(y=-18, color='k', linestyle='--')
-      plt.xlim(0, t_end)
-      plt.xlabel("Time[s]")
-      plt.ylabel("Volume[dBFS]")
-      plt.tight_layout()
-      fig.canvas.draw()
-
-      if mode==2 and (txt_wer <= sim_thresh): #passed semiautomatic
-        play_wav(wf, args.f)
-      print("    Answer by pressing the dedicated button or key: Yes <space>, No <n>, Comment <o>.")
-      qvar_time = tk.IntVar()
-      yes_tm = tk.Button(timing_frame, text = "Yes", command=lambda: qvar_time.set(1))
-      master.bind('<space>', lambda e: qvar_time.set(1))
-      no_tm = tk.Button(timing_frame, text = "No", command=lambda: qvar_time.set(2))
-      master.bind('n', lambda e: qvar_time.set(2))
-      cmnt_tm = tk.Button(timing_frame, text="Comment", command=lambda: qvar_time.set(3))
-      master.bind('o', lambda e: qvar_time.set(3))
-      while True:
-        yes_tm.grid(row=1, column=1)
-        no_tm.grid(row = 1, column = 2)
-        cmnt_tm.grid(row = 1, column = 3)
-        master.update()
-        yes_tm.wait_variable(qvar_time)
-        yes_tm.grid_forget()
-        no_tm.grid_forget()
-        cmnt_tm.grid_forget()
-        master.update()
-        plt.clf()
-        fig.canvas.draw()
-        if qvar_time.get() == 1:
-          print('    Non-speech sections and audio volume meet the requirements.')
-          break
-        elif qvar_time.get() == 2:
-          if fail_string:
-            reason.append("; ".join(fail_string))
-          else:
-            reason.append('premori in/ali glasnost niso ustrezni')
+      else: #automatic or passed semiautomatic
+        if fail_string:
+          print('    Non-speech sections and/or audio volume do not meet the requirements..')
+          fail_string.append("(SNR: %.1f, SNR_sox: %.1f)"%(SNR, SNR_sox))
+          reason.append("; ".join(fail_string))
           err.append('p')
-          print('    Non-speech sections and/or audio volume do not meet the requirements. Add optional comment.')
-          descr = popup_description(( "; ".join(fail_string)).replace(".",","))
-          if descr:
-            reason[-1] = descr
-          break
-        elif qvar_time.get() == 3:
-          cmnt.append(popup_description())
-    else: #automatic or passed semiautomatic
-      if fail_string:
-        print('    Non-speech sections and/or audio volume do not meet the requirements..')
-        fail_string.append("(SNR: %.1f, SNR_sox: %.1f)"%(SNR, SNR_sox))
-        reason.append("; ".join(fail_string))
-        err.append('p')
+        else:
+          print('    Non-speech sections and audio volume meet the requirements.')
+      fig.clf()
+      master.update()
+
+      if reason:
+        reject_area.insert(tk.INSERT, fname+'\n')
       else:
-        print('    Non-speech sections and audio volume meet the requirements.')
-    fig.clf()
-    master.update()
+        accept_area.insert(tk.INSERT, fname+'\n')
 
-    if reason:
-      reject_area.insert(tk.INSERT, fname+'\n')
-    else:
-      accept_area.insert(tk.INSERT, fname+'\n')
+      xtext.loc[xtext.iloc[:,0] == fnm, 'napaka'] = ", ".join(err)
+      xtext.loc[xtext.iloc[:,0] == fnm, 'opis'] = "; ".join(reason)
+      xtext.loc[xtext.iloc[:,0] == fnm, 'opomba'] = "; ".join(cmnt)
 
-    xtext.loc[xtext.iloc[:,0] == fnm, 'napaka'] = ", ".join(err)
-    xtext.loc[xtext.iloc[:,0] == fnm, 'opis'] = "; ".join(reason)
-    xtext.loc[xtext.iloc[:,0] == fnm, 'opomba'] = "; ".join(cmnt)
-
-    xtext.to_excel(xwriter, index=False, sheet_name='povedi_za_snemanje')
-
-    xwriter.sheets['povedi_za_snemanje'].column_dimensions['A'].width = 22
-    xwriter.sheets['povedi_za_snemanje'].column_dimensions['B'].width = 90
-    xwriter.sheets['povedi_za_snemanje'].column_dimensions['C'].width = 10
-    xwriter.sheets['povedi_za_snemanje'].column_dimensions['D'].width = 60
-    xwriter.sheets['povedi_za_snemanje'].column_dimensions['E'].width = 60
-    for cell in xwriter.sheets['povedi_za_snemanje']['B']:
-      cell.alignment = Alignment(wrap_text=True)
-    xwriter.save()
+      xtext.to_excel(xwriter, index=False, sheet_name='povedi_za_snemanje')
+      xwriter.sheets['povedi_za_snemanje'].column_dimensions['A'].width = 22
+      xwriter.sheets['povedi_za_snemanje'].column_dimensions['B'].width = 90
+      xwriter.sheets['povedi_za_snemanje'].column_dimensions['C'].width = 10
+      xwriter.sheets['povedi_za_snemanje'].column_dimensions['D'].width = 60
+      xwriter.sheets['povedi_za_snemanje'].column_dimensions['E'].width = 60
+      for cell in xwriter.sheets['povedi_za_snemanje']['B']:
+        cell.alignment = Alignment(wrap_text=True)
+      # ~ xwriter.save()
 
 def popup_warning():
   window = tk.Toplevel()

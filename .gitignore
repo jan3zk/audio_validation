@@ -4,6 +4,7 @@ build/
 archive/
 audio_validation.spec
 audio_validation.exe.lnk
+audio_validation
 *.xlsx
 *.zip
 *.tar.gz
