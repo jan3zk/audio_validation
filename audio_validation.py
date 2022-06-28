@@ -132,10 +132,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
 
   tfm = sox.Transformer()
   now = datetime.datetime.now()
-  rejfile = xlsx_file #os.path.splitext(os.path.basename(xlsx_file))[0]+now.strftime("_%Y%m%d-%H%M%S")+os.path.splitext(xlsx_file)[-1]
-  # ~ xwriter = pd.ExcelWriter(rejfile, engine='openpyxl')
   with pd.ExcelWriter(xlsx_file, engine="openpyxl", mode="a", if_sheet_exists="replace") as xwriter:
-    # ~ xtext.to_excel(xwriter, index=False, sheet_name='povedi_za_snemanje')
     for c, wf in enumerate(wav_files[start_num-1:]):
       err = []
       reason = []
@@ -409,7 +406,6 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       xwriter.sheets['povedi_za_snemanje'].column_dimensions['E'].width = 60
       for cell in xwriter.sheets['povedi_za_snemanje']['B']:
         cell.alignment = Alignment(wrap_text=True)
-      # ~ xwriter.save()
 
 def popup_warning():
   window = tk.Toplevel()
