@@ -102,7 +102,7 @@ for g in govorci:
     print('\t\t\t#%s: %d'%(rej_dir, rej))
   else:
     print("\t\t\tMapa %s ne obstaja."%rej_dir)
-    rej = -3
+    rej = -4
 
   if acc == acc_bkp:
     chk = 'OK'
