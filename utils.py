@@ -135,31 +135,31 @@ def speech_trim(raw_args=None):
     type = str,
     help = 'Output WAV file or director where cropped WAV files will be stored.')
   optional.add_argument('-v', 
-    action='store_true',
+    action = 'store_true',
     help = 'Verbose flag.')
   optional.add_argument('-p', 
-    type=float,
-    default=0.8,
+    type = float,
+    default = 0.8,
     help = 'Desired initial/final silence length in seconds.')
   optional.add_argument('-t', 
-    type=int,
-    default=-36,
+    type = int,
+    default = -36,
     help = 'Silence threshold in dbFS.')
   optional.add_argument('-c', 
-    type=int,
-    default=75,
+    type = int,
+    default = 75,
     help = 'Processing step in milliseconds.')
   optional.add_argument('-a', 
-    type=int,
-    default=3,
+    type = int,
+    default = 3,
     help = 'Aggressiveness mode, which is an integer between 0 and 3. 0 is the least aggressive about filtering out non-speech, 3 is the most aggressive.')
   optional.add_argument('-m', 
-    type=float,
-    default=0.5,
+    type = float,
+    default = 0.75,
     help = 'Longest intermediate silence length within the speech section (in seconds).')
   optional.add_argument('-d', 
-    type=float,
-    default=0.75,
+    type = float,
+    default = 0.75,
     help = 'Minimum speech length (in seconds).')
   args = ap.parse_args(raw_args)
   
