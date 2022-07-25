@@ -133,7 +133,10 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
   tfm = sox.Transformer()
   now = datetime.datetime.now()
   global xwriter
-  xwriter = pd.ExcelWriter(xlsx_file, mode="w", if_sheet_exists="replace")
+  if os.name == 'nt':
+    xwriter = pd.ExcelWriter(xlsx_file, mode="w", if_sheet_exists="replace")
+  else:
+    xwriter = pd.ExcelWriter(xlsx_file, mode="a", if_sheet_exists="replace")
   try:
     for c, wf in enumerate(wav_files[start_num-1:]):
       err = []
