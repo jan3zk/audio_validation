@@ -18,22 +18,22 @@ echo "Preverjanje ujemanja števila posnetkov na Arturju:"
 
 art_sou_bkp_dir="/storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/$govorec"
 echo -n "$art_sou_bkp_dir: "
-art_sou_bkp=`ls $art_sou_bkp_dir | wc -l`
+art_sou_bkp=`ls $art_sou_bkp_dir -1A | wc -l`
 echo $art_sou_bkp
 
 art_acc_dir="/storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki/$snemalec/$govorec"
 echo -n "$art_acc_dir: "
-art_acc=`ls $art_acc_dir | wc -l`
+art_acc=`ls $art_acc_dir -1A | wc -l`
 echo $art_acc
 
 art_acc_bkp_dir="/storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki-bkp/$snemalec/$govorec"
 echo -n "$art_acc_bkp_dir: "
-art_acc_bkp=`ls $art_acc_bkp_dir | wc -l`
+art_acc_bkp=`ls $art_acc_bkp_dir -1A | wc -l`
 echo $art_acc_bkp
 
 art_rej_dir="/storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec"
 echo -n "$art_rej_dir: "
-art_rej=`ls $art_rej_dir | wc -l`
+art_rej=`ls $art_rej_dir -1A | wc -l`
 echo $art_rej
 
 echo -n "#Artur:odobreni == #Artur:odobreni_bkp ... "
