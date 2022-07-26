@@ -13,7 +13,7 @@ from pydub import AudioSegment,silence
 from pydub.playback import play
 import speech_recognition as sr
 import re
-import tkinter.filedialog as filedialog
+# ~ import tkinter.filedialog as filedialog
 import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter.scrolledtext as st
@@ -441,7 +441,7 @@ def popup_description(default_text=''):
   return descr
 
 def select_wav_dir():
-  wdir = filedialog.askdirectory()
+  wdir = tk.filedialog.askdirectory()
   wav_entry.delete(1, tk.END)
   wav_entry.insert(0, wdir)
 
