@@ -3,7 +3,12 @@ print('Loading libraries ...')
 from glob import glob
 import os
 import argparse
-import soundfile as sf
+import re
+import tkinter as tk
+import tkinter.scrolledtext as st
+import difflib as dl
+from ctypes import CFUNCTYPE, c_char_p, c_int, cdll
+from contextlib import contextmanager
 import numpy as np
 import sox
 import matplotlib.pyplot as plt
@@ -11,19 +16,13 @@ import pandas as pd
 from pydub import AudioSegment
 from pydub.playback import play
 import speech_recognition as sr
-import re
-import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import tkinter.scrolledtext as st
-import difflib as dl
 from num2words import num2words
 from jiwer import wer
 from openpyxl.styles import Alignment
 import pyloudnorm as pyln
+import soundfile as sf
 from utils import speech_trim
-from ctypes import CFUNCTYPE, c_char_p, c_int, cdll
-from contextlib import contextmanager
-
 
 # Handle pydub warnings
 ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
@@ -39,7 +38,7 @@ def noalsaerr():
 
 
 ap = argparse.ArgumentParser(
-  description = '''The tool assists the user in verifying several preset 
+  description = '''The tool assists the user in verifying several preset
   audio requirements, such as the compliance with the reference text, 
   correct audio format, initial and final non-speech segments and audio volume.''')
 ap._action_groups.pop()
@@ -98,12 +97,12 @@ def play_wav(wf, speed=1.0):
       play(speed_change(AudioSegment.from_wav(wf), speed))
 
 def num_wrapper(text):
-    """ Wraps num2words to allow mixed text-numeric types """
-    return re.sub(r"(([0-9]+[,.]?)+([,.][0-9]+)?)", num_wrapper_inner, text)
+  """ Wraps num2words to allow mixed text-numeric types """
+  return re.sub(r"(([0-9]+[,.]?)+([,.][0-9]+)?)", num_wrapper_inner, text)
 
 def num_wrapper_inner(match):
-    """ Inner wrapper feeds the string from the regex match to num2words """
-    return num2words(match.group().replace(',','.'), lang='sl')
+  """ Inner wrapper feeds the string from the regex match to num2words """
+  return num2words(match.group().replace(',','.'), lang='sl')
 
 def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
   wav_files = sorted(glob(os.path.join(wavdir, "*.wav")))
@@ -148,7 +147,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
 
       print('Audio format check:')
       stats = sf.info(wf)
-      if (stats.samplerate != 44100 or stats.channels != 1 or 
+      if (stats.samplerate != 44100 or stats.channels != 1 or
           stats.format != "WAV" or stats.subtype != "PCM_16"):
         print("    Wrong format.")
         reason.append("neustrezen format zapisa (vzorcenje: %d, kanali: %d,"
@@ -325,7 +324,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         plt.xlabel("Time [s]")
         plt.ylabel("Frequency [Hz]")
         ax2.set_title("Spectrogram")
-        
+
         ax3 = plt.subplot(313)
         plt.plot(t_vol[:t_ini_v], volume[:t_ini_v],'r')
         plt.plot(t_vol[t_ini_v:-t_fin_v], volume[t_ini_v:-t_fin_v],'g')
@@ -408,7 +407,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         cell.alignment = Alignment(wrap_text=True)
   except:
     xwriter.save()
-    
+
 def popup_warning():
   window = tk.Toplevel()
   window.title('Warning')
@@ -416,10 +415,10 @@ def popup_warning():
   label.pack(fill='x', padx=50, pady=5)
   button_close = tk.Button(window, text="Close", command=window.destroy)
   button_close.pack(fill='x')
-  
+
 def popup_description(default_text=''):
   def disable_esc():
-   pass
+    pass
   window = tk.Toplevel()
   window.protocol("WM_DELETE_WINDOW", disable_esc)
   window.title('Add comment')
@@ -481,7 +480,7 @@ wav_entry.insert(tk.END, args.w)
 wav_entry.grid()
 wav_browse = tk.Button(param_frame, text="Browse", command=select_wav_dir)
 wav_browse.grid()
-  
+
 tk.Label(param_frame, text="XLSX file:").grid()
 xlsx_entry = tk.Entry(param_frame, text="", width=40)
 xlsx_entry.insert(tk.END, args.x)
@@ -524,13 +523,13 @@ canvas.get_tk_widget().grid(row=0,column=1,columnspan=3)
 
 accept_frame = tk.LabelFrame(master, text="Accepted recordings")
 accept_frame.grid(row=0, column=2, rowspan=1, padx=5, pady=5)
-accept_area = st.ScrolledText(accept_frame, wrap = tk.WORD, 
+accept_area = st.ScrolledText(accept_frame, wrap = tk.WORD,
               width = 30, height = 14, font = ("Helvetica", 10))
 accept_area.grid()
 
 reject_frame = tk.LabelFrame(master, text="Rejected recordings")
 reject_frame.grid(row=1, column=2, rowspan=2, padx=5, pady=5)
-reject_area = st.ScrolledText(reject_frame, wrap = tk.WORD, 
+reject_area = st.ScrolledText(reject_frame, wrap = tk.WORD,
               width = 30, height = 14, font = ("Helvetica", 10))
 reject_area.grid()
 
