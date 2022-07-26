@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 print('Loading libraries ...')
-import sys
 from glob import glob
 import os
 import argparse
@@ -9,22 +8,20 @@ import numpy as np
 import sox
 import matplotlib.pyplot as plt
 import pandas as pd
-from pydub import AudioSegment,silence
+from pydub import AudioSegment
 from pydub.playback import play
 import speech_recognition as sr
 import re
-# ~ import tkinter.filedialog as filedialog
 import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter.scrolledtext as st
-import datetime
 import difflib as dl
 from num2words import num2words
 from jiwer import wer
 from openpyxl.styles import Alignment
 import pyloudnorm as pyln
 from utils import speech_trim
-from ctypes import *
+from ctypes import CFUNCTYPE, c_char_p, c_int, cdll
 from contextlib import contextmanager
 
 
@@ -131,7 +128,6 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         xtext.loc[xtext.iloc[:,0] == mw, 'opomba'] = 'manjkajoč posnetek'
 
   tfm = sox.Transformer()
-  now = datetime.datetime.now()
   global xwriter
   if os.name == 'nt':
     xwriter = pd.ExcelWriter(xlsx_file, mode="w", if_sheet_exists="replace")
