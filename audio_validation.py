@@ -24,6 +24,7 @@ import pyloudnorm as pyln
 import soundfile as sf
 from utils import speech_trim
 
+
 # Handle pydub warnings
 ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
 def py_error_handler(filename, line, function, err, fmt):
@@ -35,7 +36,6 @@ def noalsaerr():
   asound.snd_lib_error_set_handler(c_error_handler)
   yield
   asound.snd_lib_error_set_handler(None)
-
 
 ap = argparse.ArgumentParser(
     description="The tool assists the user in verifying several preset "
@@ -132,20 +132,22 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
   else:
     xwriter = pd.ExcelWriter(xlsx_file, mode="a", if_sheet_exists="replace")
   try:
-    for c, wf in enumerate(wav_files[start_num-1:]):
+    qvar_txt = tk.IntVar()
+    qvar_time = tk.IntVar()
+    for cou, wav in enumerate(wav_files[start_num-1:]):
       err = []
       reason = []
       cmnt = []
-      fname = os.path.basename(wf)
-      master.title('Validation of the file %s (%i/%i)'%(fname, c+start_num, len(wav_files)))
-      sox_stats = tfm.stats(wf)
-      sox_stats2 = sox.file_info.stat(wf)
-      print("\n%s (%i/%i)"%(fname, c+start_num, len(wav_files)))
+      fname = os.path.basename(wav)
+      master.title('Validation of the file %s (%i/%i)'%(fname, cou+start_num, len(wav_files)))
+      sox_stats = tfm.stats(wav)
+      sox_stats2 = sox.file_info.stat(wav)
+      print("\n%s (%i/%i)"%(fname, cou+start_num, len(wav_files)))
       all_stats = {**sox_stats, **sox_stats2}
       stats_label.config(text='\n'.join("{}: {}".format(k, d) for k, d in all_stats.items()))
 
       print('Audio format check:')
-      stats = sf.info(wf)
+      stats = sf.info(wav)
       if (stats.samplerate != 44100 or stats.channels != 1 or
           stats.format != "WAV" or stats.subtype != "PCM_16"):
         print("    Wrong format.")
@@ -174,7 +176,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           master.update()
         elif mode == 1 or mode == 2: #recognize speech in auto and semiauto mode
           try:
-            with sr.AudioFile(wf) as audio_src:
+            with sr.AudioFile(wav) as audio_src:
               audio_data = r.record(audio_src)
               spoken_txt = r.recognize_google(audio_data, language="sl-SL")
               spoken_txt = re.sub('-', ' ', spoken_txt)
@@ -215,10 +217,9 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             txt_label.insert(tk.INSERT, "Reference text:\n%s"%target_txt)
             master.update()
         if mode == 0 or (mode == 2 and (txt_wer > sim_thresh)) or man_switch:
-          play_wav(wf, args.f)
+          play_wav(wav, args.f)
           print("    Answer by pressing dedicated button or keyboard shortcut: "
                 "Yes <space>, No <n>, Repeat <p>, Comment <o>.")
-          qvar_txt = tk.IntVar()
           yes_txt = tk.Button(txt_frame, text="Yes", command=lambda: qvar_txt.set(1))
           master.bind('<space>', lambda e: qvar_txt.set(1))
           no_txt = tk.Button(txt_frame, text="No", command=lambda: qvar_txt.set(2))
@@ -252,18 +253,18 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
                 reason[-1] = descr
               break
             elif qvar_txt.get() == 3: #Odg: Ponovitev
-              play_wav(wf)
+              play_wav(wav)
               qvar_txt.set(0)
             elif qvar_txt.get() == 4: #Odg: Opomba
               cmnt.append(popup_description())
               qvar_txt.set(0)
 
       # Determine if initial and final pauses are appropriate
-      data, rate = sf.read(wf)
+      data, rate = sf.read(wav)
       fail_string = []
       meter = pyln.Meter(rate)
       vol_mean = meter.integrated_loudness(data)
-      (t_ini, t_fin) = speech_trim(['-i', wf])
+      (t_ini, t_fin) = speech_trim(['-i', wav])
 
       #Signal-to-noise ratio
       speechRMS = np.sqrt(np.mean(data[int(t_ini*rate):-int(t_fin*rate)]**2))
@@ -287,7 +288,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       print("Non-speech length and audio volume check:")
       if mode == 0 or (mode == 2 and fail_string): #manual or failed semiautomatic
         SEGMENT_MS = 5
-        speech = AudioSegment.from_file(wf)
+        speech = AudioSegment.from_file(wav)
         t_ini_v = int(t_ini*1000/SEGMENT_MS)
         t_fin_v = int(t_fin*1000/SEGMENT_MS)
         volume = [segment.dBFS for segment in speech[::SEGMENT_MS]]
@@ -341,10 +342,9 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         fig.canvas.draw()
 
         if mode == 2 and (txt_wer <= sim_thresh): #passed semiautomatic
-          play_wav(wf, args.f)
+          play_wav(wav, args.f)
         print("    Answer by pressing the dedicated button or "
               "key: Yes <space>, No <n>, Comment <o>.")
-        qvar_time = tk.IntVar()
         yes_tm = tk.Button(timing_frame, text="Yes", command=lambda: qvar_time.set(1))
         master.bind('<space>', lambda e: qvar_time.set(1))
         no_tm = tk.Button(timing_frame, text="No", command=lambda: qvar_time.set(2))
@@ -492,9 +492,9 @@ xlsx_browse = tk.Button(param_frame, text="Browse", command=select_xlsx_file)
 xlsx_browse.grid()
 
 tk.Label(param_frame, text="Starting index:").grid()
-start_num = tk.Entry(param_frame, text="", width=4, justify='right')
-start_num.grid()
-start_num.insert(tk.END, args.s)
+start_n = tk.Entry(param_frame, text="", width=4, justify='right')
+start_n.grid()
+start_n.insert(tk.END, args.s)
 
 mode_label = tk.Label(param_frame, text="Operating mode:")
 mode_label.grid()
@@ -555,7 +555,7 @@ while True:
       wav_browse.grid_forget()
       xlsx_browse.grid_forget()
       w.config(state="disabled")
-      verify_audio(wav_dir, xlsx_file, int(start_num.get()),
+      verify_audio(wav_dir, xlsx_file, int(start_n.get()),
                    mode_map[mode_var.get()], float(sim_thresh.get()))
       break
   master.update()
