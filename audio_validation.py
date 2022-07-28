@@ -449,6 +449,7 @@ def select_xlsx_file():
   xlsx_entry.insert(0, xfile)
 
 def on_exit():
+  import ipdb; ipdb.set_trace()
   xwriter.save()
   master.destroy()
   os._exit(1)
@@ -557,5 +558,6 @@ while True:
       w.config(state="disabled")
       verify_audio(wav_dir, xlsx_file, int(start_n.get()),
                    mode_map[mode_var.get()], float(sim_thresh.get()))
+      xwriter.save()
       break
   master.update()
