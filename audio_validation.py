@@ -449,7 +449,6 @@ def select_xlsx_file():
   xlsx_entry.insert(0, xfile)
 
 def on_exit():
-  import ipdb; ipdb.set_trace()
   xwriter.save()
   master.destroy()
   os._exit(1)
