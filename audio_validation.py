@@ -131,11 +131,6 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         xtext.loc[xtext.iloc[:, 0] == mw, 'opomba'] = 'manjkajoč posnetek'
 
   tfm = sox.Transformer()
-  # ~ global xwriter
-  # ~ if os.name == 'nt':
-    # ~ xwriter = pd.ExcelWriter(xlsx_file, mode="w", if_sheet_exists="replace")
-  # ~ else:
-    # ~ xwriter = pd.ExcelWriter(xlsx_file, mode="a", if_sheet_exists="replace")
   try:
     qvar_txt = tk.IntVar()
     qvar_time = tk.IntVar()
