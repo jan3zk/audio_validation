@@ -7,14 +7,12 @@ import re
 import tkinter as tk
 import tkinter.scrolledtext as st
 import difflib as dl
-from ctypes import CFUNCTYPE, c_char_p, c_int, cdll
-from contextlib import contextmanager
 import numpy as np
 import sox
 import matplotlib.pyplot as plt
 import pandas as pd
 from pydub import AudioSegment
-from pydub.playback import play
+from pydub.playback import _play_with_simpleaudio
 import speech_recognition as sr
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from num2words import num2words
@@ -24,18 +22,6 @@ import pyloudnorm as pyln
 import soundfile as sf
 from utils import speech_trim
 
-
-# Handle pydub warnings
-ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
-def py_error_handler(filename, line, function, err, fmt):
-  pass
-c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
-@contextmanager
-def noalsaerr():
-  asound = cdll.LoadLibrary('libasound.so')
-  asound.snd_lib_error_set_handler(c_error_handler)
-  yield
-  asound.snd_lib_error_set_handler(None)
 
 ap = argparse.ArgumentParser(
     description="The tool assists the user in verifying several preset "
@@ -94,11 +80,8 @@ def speed_change(sound, speed=1.0):
   return sound_with_altered_frame_rate.set_frame_rate(sound.frame_rate)
 
 def play_wav(wf, speed=1.0):
-  if os.name == 'nt':
-    play(speed_change(AudioSegment.from_wav(wf), speed))
-  else:
-    with noalsaerr():
-      play(speed_change(AudioSegment.from_wav(wf), speed))
+  playback = _play_with_simpleaudio(speed_change(AudioSegment.from_wav(wf), speed))
+  return playback
 
 def num_wrapper(text):
   """ Wraps num2words to allow mixed text-numeric types """
@@ -217,7 +200,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             txt_label.insert(tk.INSERT, "Reference text:\n%s"%target_txt)
             master.update()
         if mode == 0 or (mode == 2 and (txt_wer > sim_thresh)) or man_switch:
-          play_wav(wav, args.f)
+          pb = play_wav(wav, args.f)
           print("    Answer by pressing dedicated button or keyboard shortcut: "
                 "Yes <space>, No <n>, Repeat <p>, Comment <o>.")
           yes_txt = tk.Button(txt_frame, text="Yes", command=lambda: qvar_txt.set(1))
@@ -242,6 +225,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             master.update()
             if qvar_txt.get() == 1: #Odg:Da
               print('    Audio is compliant with the reference text.')
+              pb.stop()
               break
             elif qvar_txt.get() == 2: #Odg:Ne
               print("    Audio is not compliant with the reference text. "
@@ -251,13 +235,15 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
               descr = popup_description('neskladje z besedilom (ref.: "", izg.: "")')
               if descr:
                 reason[-1] = descr
+              pb.stop()
               break
             elif qvar_txt.get() == 3: #Odg: Ponovitev
-              play_wav(wav)
+              pb = play_wav(wav)
               qvar_txt.set(0)
             elif qvar_txt.get() == 4: #Odg: Opomba
               cmnt.append(popup_description())
               qvar_txt.set(0)
+              pb.stop()
 
       # Determine if initial and final pauses are appropriate
       data, rate = sf.read(wav)
