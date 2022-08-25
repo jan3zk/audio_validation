@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pydub import AudioSegment
 from pydub.playback import _play_with_simpleaudio
-import speech_recognition as sr
+#import speech_recognition as sr
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from num2words import num2words
 from jiwer import wer
@@ -21,8 +21,15 @@ from openpyxl.styles import Alignment
 import pyloudnorm as pyln
 import soundfile as sf
 from utils import speech_trim
+from selenium import webdriver
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.common.keys import Keys
+import time
+import random
 
 
+os.system('color')
 ap = argparse.ArgumentParser(
     description="The tool assists the user in verifying several preset "
                 "audio requirements, such as the compliance with the reference text, "
@@ -38,7 +45,7 @@ optional.add_argument("-w",
 optional.add_argument("-x",
                       type=str,
                       metavar="XLSX_FILE",
-                      default="path_to_ref_text_file.xlsx",
+                      default="",
                       help="XLSX filepath.")
 optional.add_argument("-s",
                       type=int,
@@ -91,9 +98,35 @@ def num_wrapper_inner(match):
   """ Inner wrapper feeds the string from the regex match to num2words """
   return num2words(match.group().replace(',', '.'), lang='sl')
 
+def get_edits_string(old, new):
+  red = lambda text: f"\033[91m{text}\033[97m"
+  green = lambda text: f"\033[92m{text}\033[97m"
+  blue = lambda text: f"\033[94m{text}\033[97m"
+  white = lambda text: f"\033[97m{text}\033[97m"
+  result = ""
+  codes = dl.SequenceMatcher(a=old, b=new).get_opcodes()
+  for code in codes:
+      if code[0] == "equal": 
+          result += white(old[code[1]:code[2]])
+      elif code[0] == "delete":
+          result += red(old[code[1]:code[2]])
+      elif code[0] == "insert":
+          result += green(new[code[3]:code[4]])
+      elif code[0] == "replace":
+          result += (red(old[code[1]:code[2]]) + green(new[code[3]:code[4]]))
+  return result
+
 def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
   wav_files = sorted(glob(os.path.join(wavdir, "*.wav")))
-  r = sr.Recognizer()
+
+  options = Options()
+  options.headless = True
+  ff = webdriver.Firefox(options=options)
+  ff.get('https://azure.microsoft.com/en-us/services/cognitive-services/speech-to-text/#features')
+  ln = Select(ff.find_element('id','langselect'))
+  #ln.select_by_value('sl-SI')
+  #s = ff.find_element('xpath', "//input[@type='file']")
+
   if xlsx_file is not None:
     xtext = pd.read_excel(xlsx_file, engine='openpyxl')
     if 'napaka' not in xtext:
@@ -159,20 +192,42 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           master.update()
         elif mode == 1 or mode == 2: #recognize speech in auto and semiauto mode
           try:
-            with sr.AudioFile(wav) as audio_src:
-              audio_data = r.record(audio_src)
-              spoken_txt = r.recognize_google(audio_data, language="sl-SL")
-              spoken_txt = re.sub('-', ' ', spoken_txt)
-              spoken_txt = num_wrapper(spoken_txt)
-              print('    Spoken text: "%s"'%spoken_txt)
-              txt_wer = wer(spoken_txt, target_txt_clean)
-              if txt_wer > sim_thresh:
-                if mode == 1:
-                  print('    Audio does not comply with reference text (WER = %.2f).'%txt_wer)
-                  reason.append('neskladje z besedilom (WER = %.2f)'%txt_wer)
-                  err.append('b')
-              else:
-                print('    Audio complies with reference text (WER = %.2f).'%txt_wer)
+            #options = Options()
+            #options.headless = True
+            #ff = webdriver.Firefox(options=options)
+            #ff.get('https://azure.microsoft.com/en-us/services/cognitive-services/speech-to-text/#features')
+            ln = Select(ff.find_element('id','langselect'))
+            ln.select_by_value('sl-SI')
+            s = ff.find_element('xpath', "//input[@type='file']")
+            #import ipdb; ipdb.set_trace()
+            #s.send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
+            s.send_keys(wav)
+            spoken_txt = 'dummy_text'
+            max_retries = 120
+            retries = 0
+            while ' ---' not in spoken_txt and retries < max_retries: 
+              time.sleep(random.uniform(0.5, 1))
+              spoken_txt = ff.find_element('xpath', "//textarea[@id='speechout']").text
+              retries += 1
+            #s.send_keys(Keys.CONTROL, 'a')
+            #s.send_keys(Keys.BACKSPACE)
+            #ff.quit()
+            ff.refresh()
+            spoken_txt = spoken_txt.split('\n',2)[-1].split('---',1)[0].rstrip()
+            spoken_txt = num_wrapper(spoken_txt)
+            #print('    Spoken text:     "%s"'%spoken_txt)
+            spoken_txt = re.sub(r'[^\w\s]', '', spoken_txt).lower()
+            spoken_txt = re.sub('-', ' ', spoken_txt)
+            print('    Spoken text:     "%s"'%get_edits_string(target_txt_clean, spoken_txt))
+            txt_wer = wer(spoken_txt, target_txt_clean)
+            if txt_wer > sim_thresh:
+              if mode == 1:
+                print('    Audio does not comply with reference text (WER = %.2f).'%txt_wer)
+                reason.append('neskladje z besedilom (WER = %.2f)'%txt_wer)
+                err.append('b')
+                cmnt.append(spoken_txt)
+            else:
+              print('    Audio complies with reference text (WER = %.2f).'%txt_wer)
             txt_label.delete('1.0', tk.END)
             txt_label.insert(tk.INSERT, "Reference text:\n%s\n\nSpoken text:\n%s\n\nWER = %.3f"
                              %(target_txt_clean, spoken_txt, txt_wer))
@@ -194,7 +249,8 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             master.update()
           except:
             print('Text could not be automatically recognized. Switching to manual mode.')
-            man_switch = 1
+            #man_switch = 1
+            cmnt.append('Text could not be automatically recognized.')
             txt_wer = np.inf
             txt_label.delete('1.0', tk.END)
             txt_label.insert(tk.INSERT, "Reference text:\n%s"%target_txt)

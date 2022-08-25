@@ -10,3 +10,4 @@ audio_validation
 *.tar.gz
 *.txt
 *.wav
+*.log
