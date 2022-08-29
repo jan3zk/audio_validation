@@ -1,25 +1,25 @@
 set -e
 
 # Example of a script call:
-# sudo sh migration_check.sh -s FE-B-S**** -g Artur-B-G****
+# sudo sh migrate.sh -s FE-B-S**** -g Artur-B-G**** -r CJVT
 
-while getopts s:g: flag
+while getopts s:g:r: flag
 do
     case "${flag}" in
         s) snemalec=${OPTARG};;
         g) govorec=${OPTARG};;
+        r) remote_name=${OPTARG};;
     esac
 done
 
 echo $'\nUstvari mape na Arturju, če te še ne obstajajo'
 mkdir -p /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki
+mkdir -p /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec/
 mkdir -p /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/$govorec
 mkdir -p /storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki/$snemalec/
 mkdir -p /storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki-bkp/$snemalec/
 
 # Ukazi povezani s kopiranjem posnetkov na Arturju iz mape izvorni-bkp v mape odobreni, zavrnjeni in odobreni-bkp
-echo $'\nUstvari mapo Artur:zavrnjeni, če ta ne obstaja'
-mkdir -p /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec/
 echo $'\nKopiraj datoteko xlsx z označenimi zavrnjenimi posnetki v mapo Artur:zavrnjeni'
 rsync -avi --stats $govorec'_zavrnjeni.xlsx' /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki
 echo $'\nOdstrani morebitne predhodne posnetke iz mape Artur:zavrnjeni'
@@ -37,14 +37,14 @@ rsync -avi --stats /storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnet
 
 # Ukazi povezani z migracijo odobrenih in zavrnjenih posnetkov iz Arturja na nas.cjvt.si
 echo $'\nUstvari mapo CJVT:odobreni, če ta še ne obstaja'
-rclone mkdir CJVT:ASR/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki/$snemalec/$govorec
+rclone mkdir $remote_name:ASR/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki/$snemalec/$govorec
 echo $'\nUstvari mapo CJVT:zavrnjeni, če ta še ne obstaja'
-rclone mkdir CJVT:ASR/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec
+rclone mkdir $remote_name:ASR/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec
 echo $'\nKopiraj datoteko xlsx iz Artur:zavrnjeni v CJVT:zavrnjeni'
-rclone copy -v /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec'_zavrnjeni.xlsx' CJVT:ASR/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/
+rclone copy -v /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec'_zavrnjeni.xlsx' $remote_name:ASR/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/
 echo $'\nSinhroniziraj mapi Artur:zavrnjeni in CJVT:zavrnjeni'
-rclone sync -v --update --ignore-existing /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec CJVT:ASR/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec
+rclone sync -v --update --ignore-existing /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec $remote_name:ASR/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec
 echo $'\nSinhroniziraj mapi Artur:odobreni in CJVT:odobreni'
-rclone sync -v --update --ignore-existing /storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki/$snemalec/$govorec CJVT:ASR/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki/$snemalec/$govorec
+rclone sync -v --update --ignore-existing /storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki/$snemalec/$govorec $remote_name:ASR/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki/$snemalec/$govorec
 echo $'\nSinhroniziraj mapi Artur:odobreni-bkp in CJVT:odobreni-bkp'
-rclone sync -v --update --ignore-existing /storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki-bkp/$snemalec/$govorec CJVT:ASR/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki-bkp/$snemalec/$govorec
+rclone sync -v --update --ignore-existing /storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki-bkp/$snemalec/$govorec $remote_name:ASR/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki-bkp/$snemalec/$govorec
