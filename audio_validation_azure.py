@@ -223,7 +223,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             if txt_wer > sim_thresh:
               if mode == 1:
                 print('    Audio does not comply with reference text (WER = %.2f).'%txt_wer)
-                reason.append('neskladje z besedilom (WER = %.2f)'%txt_wer)
+                reason.append('neskladje z besedilom (ref.: ""; izg.: "")'%txt_wer)
                 err.append('b')
                 cmnt.append(spoken_txt)
             else:
@@ -250,6 +250,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           except:
             print('Text could not be automatically recognized. Switching to manual mode.')
             #man_switch = 1
+            ff.refresh()
             cmnt.append('Text could not be automatically recognized.')
             txt_wer = np.inf
             txt_label.delete('1.0', tk.END)
