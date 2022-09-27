@@ -20,7 +20,7 @@ from jiwer import wer
 from openpyxl.styles import Alignment
 import pyloudnorm as pyln
 import soundfile as sf
-from utils import speech_trim
+from speech_trim import speech_trim
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.firefox.options import Options
@@ -209,6 +209,8 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
               time.sleep(random.uniform(0.5, 1))
               spoken_txt = ff.find_element('xpath', "//textarea[@id='speechout']").text
               retries += 1
+            if retries >= max_retries:
+              raise ValueError('Text could not be automatically recognized.')
             #s.send_keys(Keys.CONTROL, 'a')
             #s.send_keys(Keys.BACKSPACE)
             #ff.quit()
@@ -223,7 +225,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             if txt_wer > sim_thresh:
               if mode == 1:
                 print('    Audio does not comply with reference text (WER = %.2f).'%txt_wer)
-                reason.append('neskladje z besedilom (ref.: ""; izg.: "")'%txt_wer)
+                reason.append('neskladje z besedilom (ref.: ""; izg.: "")')
                 err.append('b')
                 cmnt.append(spoken_txt)
             else:
@@ -247,8 +249,9 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
                 txt_label.tag_add("del", "5.%d"%b0, "5.%d"%b1)
                 txt_label.tag_config("del", foreground="red")
             master.update()
-          except:
-            print('Text could not be automatically recognized. Switching to manual mode.')
+          except Exception as e: 
+            print(e)
+            #print('Text could not be automatically recognized. Switching to manual mode.')
             #man_switch = 1
             ff.refresh()
             cmnt.append('Text could not be automatically recognized.')
@@ -415,7 +418,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             else:
               reason.append('premori in/ali glasnost niso ustrezni')
             err.append('p')
-            print('    Non-speech sections and/or audio volume do not meet'
+            print('    Non-speech sections and/or audio volume DO NOT meet'
                   'the requirements. Add optional comment.')
             descr = popup_description(("; ".join(fail_string)).replace(".", ","))
             if descr:
@@ -425,7 +428,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             cmnt.append(popup_description())
       else: #automatic or passed semiautomatic
         if fail_string:
-          print('    Non-speech sections and/or audio volume do not meet the requirements..')
+          print('    Non-speech sections and/or audio volume DO NOT meet the requirements..')
           fail_string.append("(SNR: %.1f)"%SNR)
           reason.append("; ".join(fail_string))
           err.append('p')
@@ -451,7 +454,9 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       xwriter.sheets['povedi_za_snemanje'].column_dimensions['E'].width = 60
       for cell in xwriter.sheets['povedi_za_snemanje']['B']:
         cell.alignment = Alignment(wrap_text=True)
-  except:
+  except Exception as e: 
+    print('Save to excel file.')
+    print(e)
     xwriter.save()
 
 def popup_warning():

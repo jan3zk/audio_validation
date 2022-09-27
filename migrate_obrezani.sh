@@ -9,7 +9,7 @@ do
         s) snemalec=${OPTARG};;
         g) govorec=${OPTARG};;
         r) remote_name=${OPTARG};;
-        o) obrezani_dir=${OPTARG};;
+        o) obrezani_src=${OPTARG};;
     esac
 done
 
@@ -23,7 +23,7 @@ mkdir -p /storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki-bkp/$sn
 
 # Ukazi povezani s kopiranjem posnetkov na Arturju iz mape izvorni-bkp v mape odobreni, zavrnjeni in odobreni-bkp
 echo $'\nPremakni obrezane posnetke v Artur:obrezani'
-sudo mv $obrezani_dir/*.wav /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/PonovnoObrezani/$govorec/
+sudo mv $obrezani_src/*.wav /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/PonovnoObrezani/$govorec/
 echo $'\nKopiraj datoteko xlsx z označenimi zavrnjenimi posnetki v mapo Artur:zavrnjeni'
 rsync -avi --stats $govorec'_zavrnjeni.xlsx' /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki
 echo $'\nOdstrani morebitne predhodne posnetke iz mape Artur:zavrnjeni'
@@ -32,7 +32,7 @@ echo $'\nKopiraj zavrnjene posnetke iz Artur:obrezani v Artur:zavrnjeni'
 rsync -avi --stats --files-from=$govorec'_zavrnjeni.txt' /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/PonovnoObrezani/$govorec/ /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec/
 echo $'\nOdstrani morebitne predhodne posnetke iz mape Artur:odobreni'
 rm -f /storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki/$snemalec/$govorec/*.wav
-echo $'\nKopiraj odobrene posnetke iz Artur:izvorni-bkp v Artur:odobreni'
+echo $'\nKopiraj odobrene posnetke iz Artur:obrezani v Artur:odobreni'
 rsync -avi --stats --exclude-from=$govorec'_zavrnjeni.txt' /storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/PonovnoObrezani/$govorec/*.wav /storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki/$snemalec/$govorec/ 
 echo $'\nOdstrani morebitne predhodne posnetke iz mape Artur:odobreni-bkp'
 rm -f /storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki-bkp/$snemalec/$govorec/*.wav
