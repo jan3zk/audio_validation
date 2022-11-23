@@ -1,6 +1,6 @@
 set -e
 
-# # Example of a script call:
+# Example of a script call:
 # sudo sh migration_check.sh -s FE-B-S**** -g Artur-B-G**** -r CJVT
 
 
@@ -17,23 +17,24 @@ echo ""
 echo "Preverjanje ujemanja števila posnetkov na Arturju:"
 
 art_sou_bkp_dir="/storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/$govorec"
+#art_sou_bkp_dir="/storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/PonovnoObrezani/$govorec"
 echo -n "$art_sou_bkp_dir: "
-art_sou_bkp=`ls $art_sou_bkp_dir -1A | wc -l`
+art_sou_bkp=`ls $art_sou_bkp_dir/*.wav -1A | wc -l`
 echo $art_sou_bkp
 
 art_acc_dir="/storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki/$snemalec/$govorec"
 echo -n "$art_acc_dir: "
-art_acc=`ls $art_acc_dir -1A | wc -l`
+art_acc=`ls $art_acc_dir/*.wav -1A | wc -l`
 echo $art_acc
 
 art_acc_bkp_dir="/storage/rsdo/cjvt/BraniGovor/BraniGovor-05-FE-OdobreniPosnetki-bkp/$snemalec/$govorec"
 echo -n "$art_acc_bkp_dir: "
-art_acc_bkp=`ls $art_acc_bkp_dir -1A | wc -l`
+art_acc_bkp=`ls $art_acc_bkp_dir/*.wav -1A | wc -l`
 echo $art_acc_bkp
 
 art_rej_dir="/storage/rsdo/cjvt/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/ZavrnjeniPosnetki/$govorec"
 echo -n "$art_rej_dir: "
-art_rej=`ls $art_rej_dir -1A | wc -l`
+art_rej=`ls $art_rej_dir/*.wav -1A | wc -l`
 echo $art_rej
 
 echo -n "#Artur:odobreni == #Artur:odobreni_bkp ... "
@@ -57,6 +58,7 @@ echo ""
 echo "Preverjanje ujemanja števila posnetkov na nas.cjvt.si:"
 
 nas_sou_bkp_dir="ASR/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/$govorec"
+#nas_sou_bkp_dir="ASR/BraniGovor/BraniGovor-04-FE-IzvorniPosnetki-bkp/$snemalec/PonovnoObrezani/$govorec"
 echo -n "nas.cjvt.si:$nas_sou_bkp_dir: "
 nas_sou_bkp="$(rclone size $remote_name:$nas_sou_bkp_dir)"
 nas_sou_bkp=`echo $nas_sou_bkp | sed 's@^[^0-9]*\([0-9]\+\).*@\1@'`

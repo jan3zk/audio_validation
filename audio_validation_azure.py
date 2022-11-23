@@ -428,7 +428,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             cmnt.append(popup_description())
       else: #automatic or passed semiautomatic
         if fail_string:
-          print('    Non-speech sections and/or audio volume DO NOT meet the requirements..')
+          print('    Non-speech sections and/or audio volume DO NOT meet the requirements (%s).'%fail_string)
           fail_string.append("(SNR: %.1f)"%SNR)
           reason.append("; ".join(fail_string))
           err.append('p')
