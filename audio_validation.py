@@ -20,7 +20,8 @@ from jiwer import wer
 from openpyxl.styles import Alignment
 import pyloudnorm as pyln
 import soundfile as sf
-from utils import speech_trim
+#from utils import speech_trim
+from speech_trim import speech_trim
 
 
 ap = argparse.ArgumentParser(

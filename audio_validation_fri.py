@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pydub import AudioSegment
 from pydub.playback import _play_with_simpleaudio
-#import speech_recognition as sr
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from num2words import num2words
 from jiwer import wer
@@ -21,13 +20,8 @@ from openpyxl.styles import Alignment
 import pyloudnorm as pyln
 import soundfile as sf
 from speech_trim import speech_trim
-from selenium import webdriver
-from selenium.webdriver.support.ui import Select
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.common.keys import Keys
-import time
-import random
-
+import subprocess
+import json
 
 os.system('color')
 ap = argparse.ArgumentParser(
@@ -118,15 +112,6 @@ def get_edits_string(old, new):
 
 def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
   wav_files = sorted(glob(os.path.join(wavdir, "*.wav")))
-
-  options = Options()
-  options.headless = True
-  ff = webdriver.Firefox(options=options)
-  ff.get('https://azure.microsoft.com/en-us/services/cognitive-services/speech-to-text/#features')
-  ln = Select(ff.find_element('id','langselect'))
-  #ln.select_by_value('sl-SI')
-  #s = ff.find_element('xpath', "//input[@type='file']")
-
   if xlsx_file is not None:
     xtext = pd.read_excel(xlsx_file, engine='openpyxl')
     if 'napaka' not in xtext:
@@ -192,32 +177,14 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           master.update()
         elif mode == 1 or mode == 2: #recognize speech in auto and semiauto mode
           try:
-            #options = Options()
-            #options.headless = True
-            #ff = webdriver.Firefox(options=options)
-            #ff.get('https://azure.microsoft.com/en-us/services/cognitive-services/speech-to-text/#features')
-            ln = Select(ff.find_element('id','langselect'))
-            ln.select_by_value('sl-SI')
-            s = ff.find_element('xpath', "//input[@type='file']")
-            #import ipdb; ipdb.set_trace()
-            #s.send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
-            s.send_keys(wav)
-            spoken_txt = 'dummy_text'
-            max_retries = 120
-            retries = 0
-            while ' ---' not in spoken_txt and retries < max_retries: 
-              time.sleep(random.uniform(0.5, 1))
-              spoken_txt = ff.find_element('xpath', "//textarea[@id='speechout']").text
-              retries += 1
-            if retries >= max_retries:
-              raise ValueError('Text could not be automatically recognized.')
-            #s.send_keys(Keys.CONTROL, 'a')
-            #s.send_keys(Keys.BACKSPACE)
-            #ff.quit()
-            ff.refresh()
-            spoken_txt = spoken_txt.split('\n',2)[-1].split('---',1)[0].rstrip()
+            spoken_txt = subprocess.run(
+            ['curl', '-X', 'POST', '-F', 'audio_file=@%s'%wav,
+            'http://translator.data-lab.si:8000/api/transcribe'], capture_output=True)
+            spoken_txt = spoken_txt.stdout.decode('utf-8')
+            spoken_txt = json.loads(spoken_txt)
+            spoken_txt = spoken_txt.get('result')
+
             spoken_txt = num_wrapper(spoken_txt)
-            #print('    Spoken text:     "%s"'%spoken_txt)
             spoken_txt = re.sub(r'[^\w\s]', '', spoken_txt).lower()
             spoken_txt = re.sub('-', ' ', spoken_txt)
             print('    Spoken text:     "%s"'%get_edits_string(target_txt_clean, spoken_txt))
@@ -251,9 +218,6 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             master.update()
           except Exception as e: 
             print(e)
-            #print('Text could not be automatically recognized. Switching to manual mode.')
-            #man_switch = 1
-            ff.refresh()
             cmnt.append('Text could not be automatically recognized.')
             txt_wer = np.inf
             txt_label.delete('1.0', tk.END)
