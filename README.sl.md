@@ -10,8 +10,6 @@ Aplikacija za validacijo govornih posnetkov, ki omogoča preverjanje skladnosti 
 
 Koda je spisana v programskem jeziku Python 3. Zahtevane knjižnice se namesti z ```pip install -r requirements.txt```. 
 
-V izogib težavam pri namestitvi zahtevanih programskih knjižnic sta pripravljeni izvršljivi datoteki za okolje [Windows](https://unilj-my.sharepoint.com/:u:/g/personal/janezkrfe_fe1_uni-lj_si/EUk8rVw1B7lGi_FZfrXHtBcB6pLBJAhV2PHNZpCCf5fFSg?e=LhBbgf) in [Linux](https://unilj-my.sharepoint.com/:u:/g/personal/janezkrfe_fe1_uni-lj_si/EasNMx8l5QNGg8U6TQrHyscB9Q-oWLSscv7kmCS_ElhJBQ?e=sAlL71).
-
 ## Postopek uporabe
 
 Aplikacijo se zažene z ukazom ```python audio_validation.py``` pri čemer se prikaže grafični vmesnik, v katerem najprej navedemo vhodne parametre, kot je pot do direktorija s posnetki, pot do datoteke XLSX z besedilom in način delovanja (ročni/samodejni/polsamodejni). Po vnosu vhodnih parametrov s pritiskom na tipko "Zaženi" pričnemo z validacijo posnetkov. Priporočena je izbira polsamodejnega načina (izbran naj bo prag WER=0), ki omogoča ročno preverjanje vseh posnetkov, ki niso prestali samodejnega preverjanja.
