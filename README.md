@@ -20,7 +20,7 @@ In the second step the compliance with the reference text is verified. For this 
 
 In the last step, the initial/final silence lengths and the audio volume are checked. In the frame in the middle of the GUI, three graphs (audio amplitude, spectrogram and audio volume) are drawn in manual and semi-automatic mode, which help to assess the suitability of silence lengths and the audio volume. Automatic estimates of silent sections are color coded on the displayed graphs. The lengths of initial and final silence should be between 0.5 s and 1.0 s (white colored background on the graphs), while the audio volume should be above -20 dBFS. The recording is approved or rejected by pressing the suitable key.
 
-The audio_validation.py script uses the less reliable Google speech recognizer. More reliable recognisers can be used via the script audio_validation_azure.py, which is based on the Microsoft recogniser, or the audio_validation_fri.py, which uses a recogniser developed at FRI.
+The [audio_validation.py](audio_validation.py) script uses the less reliable Google speech recognizer. More reliable recognisers can be used via the script [audio_validation_azure.py](audio_validation_azure.py), which is based on the Microsoft recogniser, or the [audio_validation_fri.py](audio_validation_fri.py), which uses a recogniser developed at FRI.
 
 ## Auxiliary scripts
 

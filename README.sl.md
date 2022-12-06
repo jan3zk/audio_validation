@@ -20,6 +20,8 @@ Drugi korak predstavlja preverjanje skladnosti z referenčnim besedilom. V ta na
 
 V zadnjem koraku se preveri skladnost začetnih/končnih premorov in ustreznost glasnosti posnetka. V pomoč nam je sredinski okvir v grafičnem vmesniku, kjer se pri ročnem in polsamodejnem načinu izrišejo trije grafi, ki so v pomoč pri oceni ustreznosti premorov in glasnosti. Aplikacija vsebuje samodejno oceno premorov in glasnosti, zato so na grafih tihi in govorjeni deli posnetkov ustrezno barvno kodirani. Začetni in končni premor morata biti v območju med 0,5 s in 1,0 s (belo obarvano ozadje na zgornjem grafu), medtem ko naj bi bila glasnost posnetka v večji meri nad -20 dBFS. Tudi v tem koraku posnetek odobrimo ali zavrnemo s pritiskom na ustrezno tipko.
 
+Skripta [audio_validation.py](audio_validation.py) uporablja manj zanesljiv Googlov razpoznavalnik. Uporabo zanesljivejših razpoznavalnikov je možna preko skripte [audio_validation_azure.py](audio_validation_azure.py), ki temelji na Microsoftovemu razpoznavaliku in [audio_validation_fri.py](audio_validation_fri.py), ki pa uporablja razpoznavalnik, razvit na FRI.
+
 ## Pomožne skripte
 
 Skripta [xlsx2txt.py](xlsx2txt.py) iz vhodne datoteke xlsx z označenimi zavrnjenimi posnetki tvori tekstovno datoteko s seznamom zavrnjenih posnetkov. Izhodno tekstovno datoteko lahko uporabimo v povezavi s klicem rsync pri kopiranju odobrenih posnetkov (argument --exclude-from) in zavrnjenih posnetkov (argument --files-from) iz mape izvorni posnetki.
