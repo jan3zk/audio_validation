@@ -188,7 +188,10 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             spoken_txt = re.sub(r'[^\w\s]', '', spoken_txt).lower()
             spoken_txt = re.sub('-', ' ', spoken_txt)
             print('    Spoken text:     "%s"'%get_edits_string(target_txt_clean, spoken_txt))
-            txt_wer = wer(spoken_txt, target_txt_clean)
+            if spoken_txt:
+              txt_wer = wer(spoken_txt, target_txt_clean)
+            else:
+              txt_wer = np.inf
             if txt_wer > sim_thresh:
               if mode == 1:
                 print('    Audio does NOT comply with reference text (WER = %.2f).'%txt_wer)
@@ -219,6 +222,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           except Exception as e: 
             print(e)
             cmnt.append('Text could not be automatically recognized.')
+            print('Text could not be automatically recognized.')
             txt_wer = np.inf
             txt_label.delete('1.0', tk.END)
             txt_label.insert(tk.INSERT, "Reference text:\n%s"%target_txt)
@@ -262,6 +266,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
               pb.stop()
               break
             elif qvar_txt.get() == 3: #Odg: Ponovitev
+              pb.stop()
               pb = play_wav(wav)
               qvar_txt.set(0)
             elif qvar_txt.get() == 4: #Odg: Opomba
@@ -272,10 +277,13 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
       # Determine if initial and final pauses are appropriate
       data, rate = sf.read(wav)
       fail_string = []
-      meter = pyln.Meter(rate)
-      vol_mean = meter.integrated_loudness(data)
+      try:
+        meter = pyln.Meter(rate)
+        vol_mean = meter.integrated_loudness(data)
+      except:
+        vol_mean = -np.inf
       #(t_ini, t_fin) = speech_trim(['-i', wav, '-t', '-50', '-a', '0'])
-      (t_ini, t_fin) = speech_trim(['-i', wav])
+      (t_ini, t_fin) = speech_trim(['-i', wav, '-m', '2'])
 
       #Signal-to-noise ratio
       speechRMS = np.sqrt(np.mean(data[int(t_ini*rate):-int(t_fin*rate)]**2))
@@ -353,7 +361,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
         fig.canvas.draw()
 
         if mode == 2 and (txt_wer <= sim_thresh): #passed semiautomatic
-          play_wav(wav, args.f)
+          pb = play_wav(wav, args.f)
         print("    Answer by pressing the dedicated button or "
               "key: Yes <space>, No <n>, Comment <o>.")
         yes_tm = tk.Button(timing_frame, text="Yes", command=lambda: qvar_time.set(1))
@@ -376,6 +384,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
           fig.canvas.draw()
           if qvar_time.get() == 1:
             print('    Non-speech sections and audio volume meet the requirements.')
+            pb.stop()
             break
           elif qvar_time.get() == 2:
             if fail_string:
@@ -388,6 +397,7 @@ def verify_audio(wavdir, xlsx_file, start_num, mode, sim_thresh):
             descr = popup_description(("; ".join(fail_string)).replace(".", ","))
             if descr:
               reason[-1] = descr
+            pb.stop()
             break
           elif qvar_time.get() == 3:
             cmnt.append(popup_description())
