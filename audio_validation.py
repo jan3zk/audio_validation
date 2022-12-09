@@ -233,11 +233,11 @@ def validate_audio(wavdir, xlsx_file, engine, start_num, mode, sim_thresh):
         man_switch = 0
         print('Compliance with the reference text:')
         print('    Reference text:  "%s"'%re.sub('\n|\r|\t|-', ' ', target_txt))
-        if mode == 0:
+        if mode == 'manual':
           txt_label.delete('1.0', tk.END)
           txt_label.insert(tk.INSERT, 'Reference text:\n%s'%target_txt)
           master.update()
-        elif mode == 1 or mode == 2: #recognize speech in auto and semiauto mode
+        elif mode == 'automatic' or mode == 'semiautomatic':
           try:
             if engine == 'fri':
               spoken_txt = transcribe_fri(wav)
@@ -254,7 +254,7 @@ def validate_audio(wavdir, xlsx_file, engine, start_num, mode, sim_thresh):
             else:
               txt_wer = np.inf
             if txt_wer > sim_thresh:
-              if mode == 1:
+              if mode == 'automatic':
                 print('    Audio does NOT comply with reference text (WER = %.2f).'%txt_wer)
                 reason.append('neskladje z besedilom (ref.: ""; izg.: "")')
                 err.append('b')
@@ -288,7 +288,7 @@ def validate_audio(wavdir, xlsx_file, engine, start_num, mode, sim_thresh):
             txt_label.delete('1.0', tk.END)
             txt_label.insert(tk.INSERT, 'Reference text:\n%s'%target_txt)
             master.update()
-        if mode == 0 or (mode == 2 and (txt_wer > sim_thresh)) or man_switch:
+        if mode == 'manual' or (mode == 'semiautomatic' and (txt_wer > sim_thresh)) or man_switch:
           pb = play_wav(wav, args.f)
           print('    Answer by pressing dedicated button or keyboard shortcut: '
                 'Yes <space>, No <n>, Repeat <p>, Comment <o>.')
@@ -365,7 +365,7 @@ def validate_audio(wavdir, xlsx_file, engine, start_num, mode, sim_thresh):
         fail_string.append('glasnost: %.1f dBFS'%vol_mean)
 
       print('Non-speech length and audio volume check:')
-      if mode == 0 or (mode == 2 and fail_string): #manual or failed semiautomatic
+      if mode == 'manual' or (mode == 'semiautomatic' and fail_string): #manual or failed semiautomatic
         SEGMENT_MS = 5
         speech = AudioSegment.from_file(wav)
         t_ini_v = int(t_ini*1000/SEGMENT_MS)
@@ -420,7 +420,7 @@ def validate_audio(wavdir, xlsx_file, engine, start_num, mode, sim_thresh):
         plt.tight_layout()
         fig.canvas.draw()
 
-        if mode == 2 and (txt_wer <= sim_thresh): #passed semiautomatic
+        if mode == 'semiautomatic' and (txt_wer <= sim_thresh): #passed semiautomatic
           pb = play_wav(wav, args.f)
         print('''    Answer by pressing the dedicated button or 
               key: Yes <space>, No <n>, Comment <o>.''')
@@ -539,9 +539,9 @@ def on_exit():
 def set_operating_mode(*entry):
   if mode_var.get() == 'automatic' or mode_var.get() == 'semiautomatic':
     print('Vnesi prag WER med razpoznanim in '
-          'zahtevanim besedilom, pod katerim smatramo, da se posnetek in ciljno '
-          'besedilo ne skladata. (Vrednosti med 0 in 1. 0: sprejmemo le posnetke, pri katerih se '
-          'razpoznano besedilo popolnoma sklada s ciljnim besedilom, 1: sprejmemo vse posnetke)')
+      'zahtevanim besedilom, pod katerim smatramo, da se posnetek in ciljno '
+      'besedilo ne skladata. (Vrednosti med 0 in 1. 0: sprejmemo le posnetke, pri katerih se '
+      'razpoznano besedilo popolnoma sklada s ciljnim besedilom, 1: sprejmemo vse posnetke)')
     sim_label.grid_forget()
     sim_thresh.grid_forget()
     sim_label.grid()
@@ -561,14 +561,14 @@ param_frame = tk.LabelFrame(master, text='(1) Input parameters')
 param_frame.grid(row=0, column=0, padx=5, pady=5)
 
 tk.Label(param_frame, text='WAV directory:').grid()
-wav_entry = tk.Entry(param_frame, text='', width=40)
+wav_entry = tk.Entry(param_frame, text='', width=53)
 wav_entry.insert(tk.END, args.w)
 wav_entry.grid()
 wav_browse = tk.Button(param_frame, text='Browse', command=select_wav_dir)
 wav_browse.grid()
 
 tk.Label(param_frame, text='XLSX file:').grid()
-xlsx_entry = tk.Entry(param_frame, text='', width=40)
+xlsx_entry = tk.Entry(param_frame, text='', width=53)
 xlsx_entry.insert(tk.END, args.x)
 xlsx_entry.grid()
 xlsx_browse = tk.Button(param_frame, text='Browse', command=select_xlsx_file)
@@ -585,7 +585,15 @@ mode_choices = ['manual', 'automatic', 'semiautomatic']
 mode_var = tk.StringVar(master)
 w = tk.OptionMenu(param_frame, mode_var, *mode_choices, command=set_operating_mode)
 w.grid()
-mode_map = {'manual':0, 'automatic':1, 'semiautomatic':2}
+#mode_map = {'manual':0, 'automatic':1, 'semiautomatic':2}
+
+engine_label = tk.Label(param_frame, text='Operating mode:')
+engine_label.grid()
+engine_choices = ['fri', 'google', 'azure']
+engine_var = tk.StringVar(master, value='fri')
+ew = tk.OptionMenu(param_frame, engine_var, *engine_choices)
+ew.grid()
+#engine_map = {'fri':0, 'google':1, 'azure':2}
 
 sim_label = tk.Label(param_frame, text='Rejection threshold (WER):')
 sim_thresh = tk.Entry(param_frame, text='', width=4, justify='right')
@@ -610,13 +618,13 @@ canvas.get_tk_widget().grid(row=0, column=1, columnspan=3)
 accept_frame = tk.LabelFrame(master, text='Accepted recordings')
 accept_frame.grid(row=0, column=2, rowspan=1, padx=5, pady=5)
 accept_area = st.ScrolledText(accept_frame, wrap=tk.WORD,
-                              width=30, height=14, font=('Helvetica', 10))
+  width=30, height=14, font=('Helvetica', 10))
 accept_area.grid()
 
 reject_frame = tk.LabelFrame(master, text='Rejected recordings')
 reject_frame.grid(row=1, column=2, rowspan=2, padx=5, pady=5)
 reject_area = st.ScrolledText(reject_frame, wrap=tk.WORD,
-                              width=30, height=14, font=('Helvetica', 10))
+  width=30, height=14, font=('Helvetica', 10))
 reject_area.grid()
 
 stats_frame = tk.LabelFrame(master, text='Statistical data')
@@ -638,8 +646,8 @@ while True:
       wav_browse.grid_forget()
       xlsx_browse.grid_forget()
       w.config(state='disabled')
-      validate_audio(wav_dir, xlsx_file, args.e, int(start_n.get()),
-                   mode_map[mode_var.get()], float(sim_thresh.get()))
+      validate_audio(wav_dir, xlsx_file, engine_var.get(), int(start_n.get()),
+        mode_var.get(), float(sim_thresh.get()))
       xwriter.save()
       break
   master.update()

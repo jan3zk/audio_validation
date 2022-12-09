@@ -12,7 +12,7 @@ The code is written in Python 3. Required libraries can be installed by ```pip i
 
 ## Usage
 
-The app can be started by executing ```python audio_validation.py```. A graphical user interface is displayed that enables to enter the input parameters, such as the path to the directory with WAV audio recordings, the path to the XLSX text file with the reference text, and the operating mode (manual / automatic / semi-automatic). After entering the input parameters the validation procedure is started by pressing the "Run" button. It is recommended to select the semi-automatic mode with the word error rate threshold set to WER = 0, which allows to manually check all recordings that have not passed the automatic check of compliance with the referece text. 
+The app can be started by executing ```python audio_validation.py```. A graphical user interface is displayed that enables to enter the input parameters, such as the path to the directory with WAV audio recordings, the path to the XLSX text file with the reference text, the operating mode (manual / automatic / semi-automatic), and the employed transcription engine (Google, Azure, FRI). After entering the input parameters the validation procedure is started by pressing the "Run" button. It is recommended to select the semi-automatic mode with the word error rate threshold set to WER = 0, which allows to manually check all recordings that have not passed the automatic check of compliance with the referece text. 
 
 The first step of the validation process is to check the correctness of the format (channel: mono, sampling frequency: 44.1 kHz, file extension: WAV, subtype: PCM_16). This step is always performed automatically regardless of the operating mode selection.
 
@@ -20,7 +20,6 @@ In the second step the compliance with the reference text is verified. For this 
 
 In the last step, the initial/final silence lengths and the audio volume are checked. In the frame in the middle of the GUI, three graphs (audio amplitude, spectrogram and audio volume) are drawn in manual and semi-automatic mode, which help to assess the suitability of silence lengths and the audio volume. Automatic estimates of silent sections are color coded on the displayed graphs. The lengths of initial and final silence should be between 0.5 s and 1.0 s (white colored background on the graphs), while the audio volume should be above -20 dBFS. The recording is approved or rejected by pressing the suitable key.
 
-The [audio_validation.py](audio_validation.py) script uses the less reliable Google speech recognizer. More reliable recognisers can be used via the script [audio_validation_azure.py](audio_validation_azure.py), which is based on the Microsoft recogniser, or the [audio_validation_fri.py](audio_validation_fri.py), which uses a recogniser developed at FRI.
 
 ## Auxiliary scripts
 
