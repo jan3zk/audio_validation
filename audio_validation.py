@@ -7,27 +7,27 @@ import re
 import tkinter as tk
 import tkinter.scrolledtext as st
 import difflib as dl
+import time
+import random
 import numpy as np
 import sox
 import matplotlib.pyplot as plt
 import pandas as pd
 from pydub import AudioSegment
-import speech_recognition as sr
 from pydub.playback import _play_with_simpleaudio
+import speech_recognition as sr
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from num2words import num2words
 from jiwer import wer
 from openpyxl.styles import Alignment
 import pyloudnorm as pyln
 import soundfile as sf
-from speech_trim import speech_trim
-import subprocess
-import json
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.support.ui import Select
-import time
-import random
+from speech_trim import speech_trim
+import subprocess
+import json
 
 
 os.system('color')
@@ -291,7 +291,7 @@ def validate_audio(wavdir, xlsx_file, engine, start_num, mode, sim_thresh):
         if mode == 'manual' or (mode == 'semiautomatic' and (txt_wer > sim_thresh)) or man_switch:
           pb = play_wav(wav, args.f)
           print('    Answer by pressing dedicated button or keyboard shortcut: '
-                'Yes <space>, No <n>, Repeat <p>, Comment <o>.')
+            'Yes <space>, No <n>, Repeat <p>, Comment <o>.')
           yes_txt = tk.Button(txt_frame, text='Yes', command=lambda: qvar_txt.set(1))
           master.bind('<space>', lambda e: qvar_txt.set(1))
           no_txt = tk.Button(txt_frame, text='No', command=lambda: qvar_txt.set(2))
@@ -394,7 +394,7 @@ def validate_audio(wavdir, xlsx_file, engine, start_num, mode, sim_thresh):
         plt.xlabel('Time[s]')
         plt.ylabel('Amplitude')
         ax1.set_title('Initial silence: %.2f s, final silence: %.2f s'%
-                      (t_ini, t_fin), color=pcolr)
+          (t_ini, t_fin), color=pcolr)
 
         ax2 = plt.subplot(312)
         if data.ndim > 1:
@@ -410,7 +410,7 @@ def validate_audio(wavdir, xlsx_file, engine, start_num, mode, sim_thresh):
         plt.plot(t_vol[:t_ini_v], volume[:t_ini_v], 'r')
         plt.plot(t_vol[t_ini_v:-t_fin_v], volume[t_ini_v:-t_fin_v], 'g')
         ax3.set_title('Max.: %.2f dBFS, mean: %.2f dBFS'%
-                      (speech.max_dBFS, vol_mean), color=vcolr)
+          (speech.max_dBFS, vol_mean), color=vcolr)
         plt.plot(t_vol[-t_fin_v:], volume[-t_fin_v:], 'r')
         plt.axhline(y=-6, color='k', linestyle='--')
         plt.axhline(y=-18, color='k', linestyle='--')
@@ -423,7 +423,7 @@ def validate_audio(wavdir, xlsx_file, engine, start_num, mode, sim_thresh):
         if mode == 'semiautomatic' and (txt_wer <= sim_thresh): #passed semiautomatic
           pb = play_wav(wav, args.f)
         print('''    Answer by pressing the dedicated button or 
-              key: Yes <space>, No <n>, Comment <o>.''')
+          key: Yes <space>, No <n>, Comment <o>.''')
         yes_tm = tk.Button(timing_frame, text='Yes', command=lambda: qvar_time.set(1))
         master.bind('<space>', lambda e: qvar_time.set(1))
         no_tm = tk.Button(timing_frame, text='No', command=lambda: qvar_time.set(2))
@@ -585,7 +585,6 @@ mode_choices = ['manual', 'automatic', 'semiautomatic']
 mode_var = tk.StringVar(master)
 w = tk.OptionMenu(param_frame, mode_var, *mode_choices, command=set_operating_mode)
 w.grid()
-#mode_map = {'manual':0, 'automatic':1, 'semiautomatic':2}
 
 engine_label = tk.Label(param_frame, text='Operating mode:')
 engine_label.grid()
@@ -593,7 +592,6 @@ engine_choices = ['fri', 'google', 'azure']
 engine_var = tk.StringVar(master, value='fri')
 ew = tk.OptionMenu(param_frame, engine_var, *engine_choices)
 ew.grid()
-#engine_map = {'fri':0, 'google':1, 'azure':2}
 
 sim_label = tk.Label(param_frame, text='Rejection threshold (WER):')
 sim_thresh = tk.Entry(param_frame, text='', width=4, justify='right')
