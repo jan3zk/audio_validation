@@ -52,10 +52,9 @@ while IFS= read -r input_file; do
     printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "$input_file" "$input_duration" "$sample_rate" "$num_channels" "$signal_rms" "$initial_silence_length" "$final_silence_length" "$snr"
 
   fi
-
-  # Clean up temporary files
-  rm without_init_silence.wav
-  rm without_init_and_final_silence.wav
-  rm init_and_final_silence.wav
-
 done < "$input_list"
+
+# Clean up temporary files
+rm without_init_silence.wav
+rm without_init_and_final_silence.wav
+rm init_and_final_silence.wav
