@@ -1,11 +1,12 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
+#print('Nalaganje programskih knjižnic ...')
 from glob import glob
 import os, sys
 import argparse
 import soundfile as sf
 import librosa
 import numpy as np
-from pydub import AudioSegment,silence
+from pydub import AudioSegment,silence, effects
 import matplotlib.pyplot as plt
 import scipy.signal as sps
 from io import BytesIO
@@ -101,6 +102,7 @@ def initial_final_pauses(wav, aa, am, ad, at, ac):
       t_fin = t_end - t_fini
   # Find precise lenghts of initial and final silence
   speech = AudioSegment.from_file(wav)
+  speech = effects.normalize(speech)
   t_ini_v = silence.detect_leading_silence(speech[t_ini*1000:], silence_threshold=at, chunk_size=ac)
   t_ini = t_ini + t_ini_v/1000
   t_fin_v = silence.detect_leading_silence(speech.reverse()[t_fin*1000:], silence_threshold=at, chunk_size=ac)
@@ -175,45 +177,51 @@ def speech_trim(raw_args=None):
   optional = ap.add_argument_group('optional arguments')
   required.add_argument('-i',
     type = str,
-    help = 'Vhodna datoteka ali direktorij s posnetki WAV.')
+    help='Vhodna datoteka ali direktorij s posnetki WAV.')
   optional.add_argument('-o',
     type = str,
-    help = 'Izhodna datoteka ali direktorij s posnetki WAV.')
+    help='Izhodna datoteka ali direktorij s posnetki WAV.')
   optional.add_argument('-v', 
     action='store_true',
-    help = 'Argument s katerim vključimo izpis na konzolo.')
+    help='Argument s katerim vključimo izpis na konzolo.')
   optional.add_argument('-p', 
     type=float,
     default=0.75,
-    help = 'Dolžina premora v sekundah.')
+    help='Dolžina premora v sekundah.')
   optional.add_argument('-t', 
     type=int,
-    default=-35,
-    help = 'Prag tišine v dbFS.')
+    default=-40,
+    help='Prag tišine v dbFS.')
   optional.add_argument('-c', 
     type=int,
     default=75,
-    help = 'Odsek procesiranja v ms.')
+    help='Odsek procesiranja v ms.')
   optional.add_argument('-a', 
     type=int,
     default=2,
-    help = 'Stopnja filtriranje negovornih odsekov (vrendnost med 0 in 3).')
+    help='Stopnja filtriranje negovornih odsekov (vrendnost med 0 in 3).')
   optional.add_argument('-m', 
     type=float,
     default=0.5,
-    help = 'Največja dovoljena dolžina vmesnega premora znotraj govornega odseka.')
+    help='Največja dovoljena dolžina vmesnega premora znotraj govornega odseka.')
   optional.add_argument('-d', 
     type=float,
     default=1.0,
-    help = 'Minimalna dolžina govornega signala.')
+    help='Minimalna dolžina govornega signala.')
   optional.add_argument('-z',
     action='count',
     default=0,
-    help = 'Zapolni prekratke premore s šumom ozadja.')
+    help='Zapolni prekratke premore s šumom ozadja.')
   optional.add_argument('-s', 
     type=int,
     default=1,
-    help = 'Številka začetnega posneka.')
+    help='Številka začetnega posneka.')
+  optional.add_argument('-t_ini',
+    type=float,
+    help='Used defined initial pause.')
+  optional.add_argument('-t_fin',
+    type=float,
+    help='Used defined final pause.')
 
   args = ap.parse_args(raw_args)
 
@@ -224,17 +232,19 @@ def speech_trim(raw_args=None):
   # ~ bgrnd_all = AudioSegment.empty()
   tini = []
   tfin = []
-  
-  #fig = plt.figure()
-    
+
+  if args.v:
+    fig = plt.figure()
+
   for c,wav in enumerate(in_wavs[args.s-1:]):
     lead_add = 0
     trail_add = 0
-    #print("\n(%i/%i)"%(c+args.s, len(in_wavs)))
     t_ini, t_fin = initial_final_pauses(wav, args.a, args.m, args.d, args.t, args.c)
-    #print('\nVhodni posnetek: %s'%wav)
-    #print('Ocenjen začetni premor: %.1f'%t_ini)
-    #print('Ocenjen končni premor: %.1f'%t_fin)
+    if args.v:
+      print("\n(%i/%i)"%(c+args.s, len(in_wavs)))
+      print('\nVhodni posnetek: %s'%wav)
+      print('Ocenjen začetni premor: %.1f'%t_ini)
+      print('Ocenjen končni premor: %.1f'%t_fin)
     data, rate = sf.read(wav)
     
     if args.z:
@@ -266,7 +276,8 @@ def speech_trim(raw_args=None):
         bgrnd_chunk_ini = bgrnd_chunk[int(t_rand_ini*rate):int((t_rand_ini+args.p-t_ini)*rate)]
         data = np.concatenate((bgrnd_chunk_ini, data))
         lead_add = args.p-t_ini
-        #print('Premajhen začetni premor. Dodanega %.2f s šuma na začetek posnetka.'%lead_add)
+        if args.v:
+          print('Premajhen začetni premor. Dodanega %.2f s šuma na začetek posnetka.'%lead_add)
 
       if t_fin < args.p:
         t_rand_fin = random.uniform(0,t_end_chunk-args.p+t_fin)
@@ -274,14 +285,21 @@ def speech_trim(raw_args=None):
         bgrnd_chunk_fin = bgrnd_chunk[int(t_rand_fin*rate):int((t_rand_fin+args.p-t_fin)*rate)]
         data = np.concatenate((data, bgrnd_chunk_fin))
         trail_add = args.p-t_fin
-        #print('Premajhen končni premor. Dodanega %.2f s šuma na konec posnetka.'%trail_add)
+        if args.v:
+          print('Premajhen končni premor. Dodanega %.2f s šuma na konec posnetka.'%trail_add)
 
       # Recompute the precise final length on the extended signal
       tmp_mod = str(uuid.uuid4())+'.wav'
       sf.write(tmp_mod, data, rate)
       t_ini, t_fin = initial_final_pauses(tmp_mod, args.a, args.m, args.d, args.t, args.c)
       os.remove(tmp_mod)
-
+    
+    #t_ini = 2.1 #user defined initial pause
+    #t_fin = 2.8 #user defined final pause
+    if args.t_ini is not None:
+      t_ini = args.t_ini
+    if args.t_fin is not None:
+      t_fin = args.t_fin
     lead_trim = t_ini-args.p if t_ini-args.p > 0 else 0
     trail_trim = t_fin-args.p if t_fin-args.p > 0 else 0
     if lead_trim < lead_add:
@@ -294,63 +312,64 @@ def speech_trim(raw_args=None):
       trail_add = 0
       
     t_end = len(data)/rate
-    
-    #print('Dolžina začetnega obreza: %.1f s'%lead_trim)
-    #print('Dolžina končnega obreza: %.1f s'%trail_trim)
+    if args.v:
+      print('Dolžina začetnega obreza: %.1f s'%lead_trim)
+      print('Dolžina končnega obreza: %.1f s'%trail_trim)
 
-    #if args.o:
-    #  if any(np.array([lead_add, trail_add, lead_trim, trail_trim])>0):
-    #    if os.path.isdir(args.o):
-    #      out_path = os.path.join(args.o,os.path.basename(wav))
-    #    else:
-    #      out_path = args.o
-    #    print('Prirezani posnetek shranjen v: %s'%out_path)
-    #    sf.write(out_path, data[int(lead_trim*rate):int((t_end-trail_trim)*rate)], rate)
-    #  else:
-    #    shutil.copy2(wav, args.o)
-    #
-    ## Plot signal and detected silence
-    #ax = plt.subplot(211)
-    #plt.plot( np.linspace(0,t_ini,len(data[:int(t_ini*rate)])),
-    #  data[:int(t_ini*rate)], 'r')
-    #plt.plot( np.linspace(t_ini,t_end-t_fin,
-    #  len(data[int(t_ini*rate):int((t_end-t_fin)*rate)])),
-    #  data[int(t_ini*rate):int((t_end-t_fin)*rate)], 'g')
-    #plt.plot( np.linspace(t_end-t_fin,t_end,
-    #  len(data[int((t_end-t_fin)*rate):])),
-    #  data[int((t_end-t_fin)*rate):], 'r')
-    #plt.axvspan(0, .5, facecolor='r', alpha=.3)
-    #plt.axvspan(t_end, t_end-.5, facecolor='r', alpha=.3)
-    #plt.axvspan(1, t_end-1, facecolor='g', alpha=.3)
-    #plt.axvspan(0, lead_trim, facecolor='k', alpha=.1, hatch='/')
-    #plt.axvspan(t_end-trail_trim, t_end, facecolor='k', alpha=.1, hatch='/')
-    #plt.axvspan(0, lead_add, facecolor='k', alpha=.1, hatch='.')
-    #plt.axvspan(t_end-trail_add, t_end, facecolor='k', alpha=.1, hatch='.')
-    #plt.axhline(y=.5, color='k', linestyle='--')
-    #plt.axhline(y=-.5, color='k', linestyle='--')
-    #plt.ylim([-1, 1])
-    #plt.xlim(0,t_end)
-    #plt.xlabel('Čas [s]')
-    #plt.ylabel('Amplituda')
-    #ax.set_title('sprememba na začetku: %.2f s, sprememba na koncu: %.2f s'%(max([-lead_trim, lead_add], key=abs), max([-trail_trim, trail_add], key=abs)))
-    #ax2 = plt.subplot(212)
-    #if data.ndim > 1:
-    #  plt.specgram(data[:,0],Fs=rate)
-    #else:
-    #  plt.specgram(data,Fs=rate)
-    #plt.xlim(0, t_end)
-    #plt.xlabel('Čas [s]')
-    #plt.ylabel('Frekvenca [Hz]')
-    #ax2.set_title('Spektrogram')
-    #plt.tight_layout()
-    #if args.o:
-    #  if os.path.isdir(args.o):
-    #    fig.savefig(os.path.join(args.o,os.path.basename(wav)[:-4]+'.jpg'), bbox_inches='tight',format='jpg')
-    #  else:
-    #    fig.savefig(os.path.join(os.path.basename(args.o)[:-4]+'.jpg'), bbox_inches='tight',format='jpg')
-    #if args.v:
-    #  plt.show()
-    #fig.clf()
+    if args.o:
+      if any(np.array([lead_add, trail_add, lead_trim, trail_trim])>0):
+        if os.path.isdir(args.o):
+          out_path = os.path.join(args.o,os.path.basename(wav))
+        else:
+          out_path = args.o
+        if args.v:
+          print('Prirezani posnetek shranjen v: %s'%out_path)
+        sf.write(out_path, data[int(lead_trim*rate):int((t_end-trail_trim)*rate)], rate)
+      else:
+        shutil.copy2(wav, args.o)
+
+    if args.v:
+      # Plot signal and detected silence
+      ax = plt.subplot(211)
+      plt.plot( np.linspace(0,t_ini,len(data[:int(t_ini*rate)])),
+        data[:int(t_ini*rate)], 'r')
+      plt.plot( np.linspace(t_ini,t_end-t_fin,
+        len(data[int(t_ini*rate):int((t_end-t_fin)*rate)])),
+        data[int(t_ini*rate):int((t_end-t_fin)*rate)], 'g')
+      plt.plot( np.linspace(t_end-t_fin,t_end,
+        len(data[int((t_end-t_fin)*rate):])),
+        data[int((t_end-t_fin)*rate):], 'r')
+      plt.axvspan(0, .5, facecolor='r', alpha=.3)
+      plt.axvspan(t_end, t_end-.5, facecolor='r', alpha=.3)
+      plt.axvspan(1, t_end-1, facecolor='g', alpha=.3)
+      plt.axvspan(0, lead_trim, facecolor='k', alpha=.1, hatch='/')
+      plt.axvspan(t_end-trail_trim, t_end, facecolor='k', alpha=.1, hatch='/')
+      plt.axvspan(0, lead_add, facecolor='k', alpha=.1, hatch='.')
+      plt.axvspan(t_end-trail_add, t_end, facecolor='k', alpha=.1, hatch='.')
+      plt.axhline(y=.5, color='k', linestyle='--')
+      plt.axhline(y=-.5, color='k', linestyle='--')
+      plt.ylim([-1, 1])
+      plt.xlim(0,t_end)
+      plt.xlabel('Čas [s]')
+      plt.ylabel('Amplituda')
+      ax.set_title('sprememba na začetku: %.2f s, sprememba na koncu: %.2f s'%(max([-lead_trim, lead_add], key=abs), max([-trail_trim, trail_add], key=abs)))
+      ax2 = plt.subplot(212)
+      if data.ndim > 1:
+        plt.specgram(data[:,0],Fs=rate)
+      else:
+        plt.specgram(data,Fs=rate)
+      plt.xlim(0, t_end)
+      plt.xlabel('Čas [s]')
+      plt.ylabel('Frekvenca [Hz]')
+      ax2.set_title('Spektrogram')
+      plt.tight_layout()
+      if args.o:
+        if os.path.isdir(args.o):
+          fig.savefig(os.path.join(args.o,os.path.basename(wav)[:-4]+'.jpg'), bbox_inches='tight',format='jpg')
+        else:
+          fig.savefig(os.path.join(os.path.basename(args.o)[:-4]+'.jpg'), bbox_inches='tight',format='jpg')
+      #plt.show()
+      fig.clf()
 
     tini.append(t_ini)
     tfin.append(t_fin)
